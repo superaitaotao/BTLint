@@ -28,12 +28,12 @@ namespace Analyzer1
         /// <summary>
         /// Class comment rule.
         /// </summary>
-        private static DiagnosticDescriptor ClassCommentRule = new DiagnosticDescriptor(CommentAnalyzer.DiagnosticId, "Class comment error", "{0}", Category, DiagnosticSeverity.Warning, true);
+        private static DiagnosticDescriptor Rule = new DiagnosticDescriptor(CommentAnalyzer.DiagnosticId, "Class comment error", "{0}", Category, DiagnosticSeverity.Warning, true);
 
         /// <summary>
         /// Supported Diagnostics.
         /// </summary>
-        public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get { return ImmutableArray.Create(ClassCommentRule); } }
+        public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get { return ImmutableArray.Create(Rule); } }
 
         /// <summary>
         /// Initializes.
@@ -43,6 +43,7 @@ namespace Analyzer1
         {
             context.RegisterSyntaxNodeAction(AnalyzeMethodDeclaration, SyntaxKind.MethodDeclaration);
             context.RegisterSyntaxNodeAction(AnalyzeClassDeclaration, SyntaxKind.ClassDeclaration);
+            context.RegisterCodeBlockAction(AnalyzeBlock);
         }
 
         private static void AnalyzeMethodDeclaration(SyntaxNodeAnalysisContext context)
@@ -55,26 +56,9 @@ namespace Analyzer1
             CommentAnalyzer.AnalyzeSummaryComments(context);
         }
 
-        /// <summary>
-        /// Analyzes comments before method declaration.
-        /// </summary>
-        /// <param name="context">Analysis context.</param>
-        private static void AnalyzeParamComments(SyntaxNodeAnalysisContext context)
+        private static void AnalyzeBlock(CodeBlockAnalysisContext context)
         {
-            MethodDeclarationSyntax methodDeclarationSyntax = (MethodDeclarationSyntax)context.Node;
-            SyntaxToken firstToken = methodDeclarationSyntax.DescendantTokens().FirstOrDefault();
-            SyntaxTrivia singleLineDocumentationTrivia = firstToken.GetAllTrivia().FirstOrDefault(trivia => SyntaxKind.SingleLineCommentTrivia == trivia.Kind());
-
-            Tuple<XmlElementSyntax, string>[] paramComments = CommentAnalyzer.GetParamComments(singleLineDocumentationTrivia).ToArray();
-            if (paramComments.Count() != methodDeclarationSyntax.ParameterList.Parameters.Count())
-                CommentAnalyzer.ReportDiagnostic(context, methodDeclarationSyntax.ParameterList.GetLocation(), ErrorCode.IncompatibleParamComments);
-
-            foreach (var param in methodDeclarationSyntax.ParameterList.Parameters)
-            {
-                var paramComment = paramComments.Where(comment => comment.Item2 == param.Identifier.ToString()).FirstOrDefault();
-                if (null == paramComment)
-                    CommentAnalyzer.ReportDiagnostic(context, param.GetLocation(), ErrorCode.MissingParamComment);
-            }
+            CommentAnalyzer.AnalyzeBlockComment(context);            
         }
 
         /// <summary>
@@ -131,6 +115,52 @@ namespace Analyzer1
             StringValidator.StartWithCapitalLetter,
             StringValidator.FirstWordInSForm,
         };
+
+        private static readonly StringValidator.Validate[] NormalCommentValidator = new StringValidator.Validate[]
+        {
+            StringValidator.CommentNotEmpty,
+            StringValidator.NotEndWithDot,
+            StringValidator.StartWithCapitalLetter,
+            StringValidator.NoMultipleSpace,
+            StringValidator.FirstWordNotInSForm
+        };
+
+        /// <summary>
+        /// Analyze comment inside block
+        /// </summary>
+        /// <param name="context"></param>
+        private static void AnalyzeBlockComment(CodeBlockAnalysisContext context)
+        {
+            // Get the block
+            MethodDeclarationSyntax methodDeclarationSyntax = context.CodeBlock as MethodDeclarationSyntax;
+            if (methodDeclarationSyntax == null)
+                return;
+            BlockSyntax block = methodDeclarationSyntax.Body as BlockSyntax;
+
+            // Get all single line comment trivia
+            IEnumerable<SyntaxTrivia> singleLineCommentTrivias = block.DescendantTrivia().Where(trivia => SyntaxKind.SingleLineCommentTrivia == trivia.Kind() ||
+                SyntaxKind.SingleLineDocumentationCommentTrivia == trivia.Kind());
+
+            // Iterate through each single line comment
+            string message = string.Empty;
+            foreach(SyntaxTrivia singleLineComment in singleLineCommentTrivias)
+            {
+                if (!StringValidator.StartWithTwoSlashes(singleLineComment.ToString(), ref message))
+                {
+                    context.ReportDiagnostic(Diagnostic.Create(CommentAnalyzer.Rule, singleLineComment.GetLocation(), message));
+                    continue;
+                }
+
+                string trimmedText = singleLineComment.ToString().Substring(3);
+                foreach(StringValidator.Validate validate in CommentAnalyzer.NormalCommentValidator)
+                {
+                    if(!validate(trimmedText, ref message))
+                        context.ReportDiagnostic(Diagnostic.Create(CommentAnalyzer.Rule, singleLineComment.GetLocation(), message));
+                }
+            }
+
+
+        }
 
         /// <summary>
         /// Analyzes class comments.
@@ -434,7 +464,7 @@ namespace Analyzer1
 
         private static void ReportDiagnostic(SyntaxNodeAnalysisContext context, Location location, string message)
         {
-            var diagnostic = Diagnostic.Create(ClassCommentRule, location, message);
+            var diagnostic = Diagnostic.Create(Rule, location, message);
             context.ReportDiagnostic(diagnostic);
         }
 

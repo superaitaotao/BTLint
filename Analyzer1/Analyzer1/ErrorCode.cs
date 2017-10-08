@@ -18,5 +18,8 @@
         internal static readonly string MustStartWithCapitalLetter = "Capital letter first";
         internal static readonly string FirstWordMustBeSForm = "First verb should be in -s -es form";
         internal static readonly string IncorrectReturnComment = "Incorrect return comment";
+        internal static readonly string CommentNotEndWithDot = "Should not end with .";
+        internal static readonly string FirstWordNotInSForm = "First word cannot be in -s -es form";
+        internal static readonly string MustStartWithTwoSlashes = "Must start with //";
     }
 }

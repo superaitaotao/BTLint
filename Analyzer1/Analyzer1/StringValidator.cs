@@ -80,6 +80,22 @@ namespace Analyzer1
             return true;
         }
 
+        public static bool NotEndWithDot(string text, ref string message)
+        {
+            // Trim string
+            string trimmedText = text.Trim();
+
+            // End with dot
+            if (trimmedText.EndsWith("."))
+            {
+                message = ErrorCode.CommentNotEndWithDot;
+                return false;
+            }
+
+            // Return true
+            return true;
+        }
+
         public static bool StartWithCapitalLetter(string text, ref string message)
         {
             // Trim string
@@ -105,6 +121,40 @@ namespace Analyzer1
             if (!(trimmedText.Split(' ')[0].EndsWith("s") && (!trimmedText.Split(' ')[0].EndsWith("es"))))
             {
                 message = ErrorCode.FirstWordMustBeSForm;
+                return false;
+            }
+
+            // Return true
+            return true;
+        }
+
+        public static bool FirstWordNotInSForm(string text, ref string message)
+        {
+            // Trim string
+            string trimmedText = text.Trim();
+
+            // First word should be a verb with s or es
+            if ((trimmedText.Split(' ')[0].EndsWith("s") || (trimmedText.Split(' ')[0].EndsWith("es"))))
+            {
+                message = ErrorCode.FirstWordNotInSForm;
+                return false;
+            }
+
+            // Return true
+            return true;
+        }
+
+        public static bool StartWithTwoSlashes(string text, ref string message)
+        {
+            if(!text.StartsWith("//"))
+            {
+                message = ErrorCode.MustStartWithTwoSlashes;
+                return false;
+            }
+
+            if(!text.StartsWith("// "))
+            {
+                message = ErrorCode.MissingSpace;
                 return false;
             }
 
