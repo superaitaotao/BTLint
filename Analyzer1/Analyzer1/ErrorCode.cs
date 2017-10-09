@@ -23,5 +23,6 @@
         internal static readonly string MustStartWithTwoSlashes = "Must start with //";
         internal static readonly string ExtraLine = "Extra empty line space";
         internal static readonly string MissingEmptyLine = "Missing empty line space";
+        internal static readonly string UnexpectedComponentsBeforeClosingBracket = "Unexpected components before closing bracket";
     }
 }

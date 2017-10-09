@@ -136,7 +136,7 @@ namespace Analyzer1
                 return;
 
             // Get all single line comment trivia
-            IEnumerable<SyntaxTrivia> singleLineCommentTrivias = methodDeclarationSyntax.DescendantTrivia().Where(trivia => SyntaxKind.SingleLineCommentTrivia == trivia.Kind() ||
+            IEnumerable<SyntaxTrivia> singleLineCommentTrivias = methodDeclarationSyntax.GetTrailingTrivia().Where(trivia => SyntaxKind.SingleLineCommentTrivia == trivia.Kind() ||
                 SyntaxKind.SingleLineDocumentationCommentTrivia == trivia.Kind());
 
             // Iterate through each single line comment
@@ -173,6 +173,7 @@ namespace Analyzer1
             // Iterate through each block
             foreach (BlockSyntax block in blocks)
             {
+                // Get a list of node, single line comment and end of line...
                 List<Tuple<object, SyntaxKind>> blockObjectList = new List<Tuple<object, SyntaxKind>>();
                 foreach (SyntaxNode node in block.ChildNodes())
                 {
@@ -197,6 +198,7 @@ namespace Analyzer1
                 }
 
                 // Trim the block object list
+                // Remove end of line after a "sentence"
                 List<Tuple<object, SyntaxKind>> trimmedBlockObjectList = new List<Tuple<object, SyntaxKind>>();
                 for (int i = 0; i < blockObjectList.Count() - 1; i++)
                 {
@@ -226,7 +228,7 @@ namespace Analyzer1
                 // Statements should have comments before
                 for (int i = 0; i < trimmedBlockObjectList.Count(); i++)
                 {
-                    while (trimmedBlockObjectList[i].Item2 != SyntaxKind.None)
+                    while (i < trimmedBlockObjectList.Count() && trimmedBlockObjectList[i].Item2 != SyntaxKind.None)
                         i++;
 
                     if (i < trimmedBlockObjectList.Count())
@@ -235,12 +237,17 @@ namespace Analyzer1
                             context.ReportDiagnostic(Diagnostic.Create(CommentAnalyzer.Rule, ((SyntaxNode)trimmedBlockObjectList[i].Item1).GetLocation(), ErrorCode.MissingComment));
                     }
 
-                    while (trimmedBlockObjectList[i].Item2 == SyntaxKind.None)
+                    while (i < trimmedBlockObjectList.Count() && trimmedBlockObjectList[i].Item2 == SyntaxKind.None)
                         i++;
 
                     if (i < trimmedBlockObjectList.Count() && trimmedBlockObjectList[i].Item2 != SyntaxKind.EndOfLineTrivia)
                         context.ReportDiagnostic(Diagnostic.Create(CommentAnalyzer.Rule, ((SyntaxTrivia)trimmedBlockObjectList[i].Item1).GetLocation(), ErrorCode.MissingEmptyLine));
                 }
+
+                // Cannot end with empty lines
+                IEnumerable<SyntaxTrivia> endingEmptyLines = block.CloseBraceToken.LeadingTrivia;
+                if (endingEmptyLines.Count() > 0)
+                    context.ReportDiagnostic(Diagnostic.Create(CommentAnalyzer.Rule, block.CloseBraceToken.GetLocation(), ErrorCode.UnexpectedComponentsBeforeClosingBracket));
             }
         }
 
