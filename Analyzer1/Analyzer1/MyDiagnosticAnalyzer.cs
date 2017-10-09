@@ -43,7 +43,7 @@ namespace Analyzer1
         {
             context.RegisterSyntaxNodeAction(AnalyzeMethodDeclaration, SyntaxKind.MethodDeclaration);
             context.RegisterSyntaxNodeAction(AnalyzeClassDeclaration, SyntaxKind.ClassDeclaration);
-            context.RegisterCodeBlockAction(AnalyzeBlock);
+            context.RegisterCodeBlockAction(AnalyzeInsideMethod);
         }
 
         private static void AnalyzeMethodDeclaration(SyntaxNodeAnalysisContext context)
@@ -56,9 +56,10 @@ namespace Analyzer1
             CommentAnalyzer.AnalyzeSummaryComments(context);
         }
 
-        private static void AnalyzeBlock(CodeBlockAnalysisContext context)
+        private static void AnalyzeInsideMethod(CodeBlockAnalysisContext context)
         {
-            CommentAnalyzer.AnalyzeBlockComment(context);            
+            CommentAnalyzer.AnalyzeInsideMethodComment(context);
+            CommentAnalyzer.AnalyzeBlockEmptyLines(context);
         }
 
         /// <summary>
@@ -103,7 +104,6 @@ namespace Analyzer1
             StringValidator.NoMultipleSpace,
             StringValidator.NotStartsWithSpace,
             StringValidator.StartWithCapitalLetter,
-            StringValidator.FirstWordInSForm,
         };
 
         private static readonly StringValidator.Validate[] ReturnTextValidators = new StringValidator.Validate[]
@@ -113,7 +113,6 @@ namespace Analyzer1
             StringValidator.NoMultipleSpace,
             StringValidator.NotStartsWithSpace,
             StringValidator.StartWithCapitalLetter,
-            StringValidator.FirstWordInSForm,
         };
 
         private static readonly StringValidator.Validate[] NormalCommentValidator = new StringValidator.Validate[]
@@ -126,24 +125,23 @@ namespace Analyzer1
         };
 
         /// <summary>
-        /// Analyze comment inside block
+        /// Analyze comment inside block.
         /// </summary>
-        /// <param name="context"></param>
-        private static void AnalyzeBlockComment(CodeBlockAnalysisContext context)
+        /// <param name="context">Context.</param>
+        private static void AnalyzeInsideMethodComment(CodeBlockAnalysisContext context)
         {
             // Get the block
             MethodDeclarationSyntax methodDeclarationSyntax = context.CodeBlock as MethodDeclarationSyntax;
             if (methodDeclarationSyntax == null)
                 return;
-            BlockSyntax block = methodDeclarationSyntax.Body as BlockSyntax;
 
             // Get all single line comment trivia
-            IEnumerable<SyntaxTrivia> singleLineCommentTrivias = block.DescendantTrivia().Where(trivia => SyntaxKind.SingleLineCommentTrivia == trivia.Kind() ||
+            IEnumerable<SyntaxTrivia> singleLineCommentTrivias = methodDeclarationSyntax.DescendantTrivia().Where(trivia => SyntaxKind.SingleLineCommentTrivia == trivia.Kind() ||
                 SyntaxKind.SingleLineDocumentationCommentTrivia == trivia.Kind());
 
             // Iterate through each single line comment
             string message = string.Empty;
-            foreach(SyntaxTrivia singleLineComment in singleLineCommentTrivias)
+            foreach (SyntaxTrivia singleLineComment in singleLineCommentTrivias)
             {
                 if (!StringValidator.StartWithTwoSlashes(singleLineComment.ToString(), ref message))
                 {
@@ -152,14 +150,98 @@ namespace Analyzer1
                 }
 
                 string trimmedText = singleLineComment.ToString().Substring(3);
-                foreach(StringValidator.Validate validate in CommentAnalyzer.NormalCommentValidator)
+                foreach (StringValidator.Validate validate in CommentAnalyzer.NormalCommentValidator)
                 {
-                    if(!validate(trimmedText, ref message))
+                    if (!validate(trimmedText, ref message))
                         context.ReportDiagnostic(Diagnostic.Create(CommentAnalyzer.Rule, singleLineComment.GetLocation(), message));
                 }
             }
+        }
 
+        /// <summary>
+        /// Analyzes empty lines inside blocks
+        /// </summary>
+        /// <param name="context"></param>
+        private static void AnalyzeBlockEmptyLines(CodeBlockAnalysisContext context)
+        {
+            // Get the block
+            MethodDeclarationSyntax methodDeclarationSyntax = context.CodeBlock as MethodDeclarationSyntax;
+            if (methodDeclarationSyntax == null)
+                return;
+            IEnumerable<BlockSyntax> blocks = methodDeclarationSyntax.DescendantNodes().Where(node => SyntaxKind.Block == node.Kind()).OfType<BlockSyntax>();
 
+            // Iterate through each block
+            foreach (BlockSyntax block in blocks)
+            {
+                List<Tuple<object, SyntaxKind>> blockObjectList = new List<Tuple<object, SyntaxKind>>();
+                foreach (SyntaxNode node in block.ChildNodes())
+                {
+                    bool isNodeAdded = false;
+                    SyntaxTrivia[] allTrivias = node.DescendantTrivia().Where(trivia => SyntaxKind.SingleLineCommentTrivia == trivia.Kind() || SyntaxKind.EndOfLineTrivia == trivia.Kind()).ToArray();
+                    foreach (SyntaxTrivia trivia in allTrivias)
+                    {
+                        if (trivia.SpanStart < node.SpanStart)
+                        {
+                            blockObjectList.Add(Tuple.Create<object, SyntaxKind>(trivia, trivia.Kind()));
+                        }
+                        else
+                        {
+                            if (!isNodeAdded)
+                            {
+                                blockObjectList.Add(Tuple.Create<object, SyntaxKind>(node, SyntaxKind.None));
+                                isNodeAdded = true;
+                            }
+                            blockObjectList.Add(Tuple.Create<object, SyntaxKind>(trivia, trivia.Kind()));
+                        }
+                    }
+                }
+
+                // Trim the block object list
+                List<Tuple<object, SyntaxKind>> trimmedBlockObjectList = new List<Tuple<object, SyntaxKind>>();
+                for (int i = 0; i < blockObjectList.Count() - 1; i++)
+                {
+                    if (blockObjectList[i].Item2 != SyntaxKind.EndOfLineTrivia)
+                    {
+                        if (blockObjectList[i + 1].Item2 == SyntaxKind.EndOfLineTrivia)
+                        {
+                            trimmedBlockObjectList.Add(blockObjectList[i]);
+                            i++;
+                        }
+                        continue;
+                    }
+                    trimmedBlockObjectList.Add(blockObjectList[i]);
+                }
+
+                //// Cannot start with empty lines
+                for (int i = 0; i < trimmedBlockObjectList.Count(); i++)
+                {
+                    if (blockObjectList[i].Item2 == SyntaxKind.EndOfLineTrivia)
+                    {
+                        context.ReportDiagnostic(Diagnostic.Create(CommentAnalyzer.Rule, ((SyntaxTrivia)trimmedBlockObjectList[i].Item1).GetLocation(), ErrorCode.ExtraLine));
+                    }
+                    else
+                        break;
+                }
+
+                // Statements should have comments before
+                for (int i = 0; i < trimmedBlockObjectList.Count(); i++)
+                {
+                    while (trimmedBlockObjectList[i].Item2 != SyntaxKind.None)
+                        i++;
+
+                    if (i < trimmedBlockObjectList.Count())
+                    {
+                        if (i - 1 < 0 || trimmedBlockObjectList[i - 1].Item2 != SyntaxKind.SingleLineCommentTrivia)
+                            context.ReportDiagnostic(Diagnostic.Create(CommentAnalyzer.Rule, ((SyntaxNode)trimmedBlockObjectList[i].Item1).GetLocation(), ErrorCode.MissingComment));
+                    }
+
+                    while (trimmedBlockObjectList[i].Item2 == SyntaxKind.None)
+                        i++;
+
+                    if (i < trimmedBlockObjectList.Count() && trimmedBlockObjectList[i].Item2 != SyntaxKind.EndOfLineTrivia)
+                        context.ReportDiagnostic(Diagnostic.Create(CommentAnalyzer.Rule, ((SyntaxTrivia)trimmedBlockObjectList[i].Item1).GetLocation(), ErrorCode.MissingEmptyLine));
+                }
+            }
         }
 
         /// <summary>

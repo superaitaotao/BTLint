@@ -21,5 +21,7 @@
         internal static readonly string CommentNotEndWithDot = "Should not end with .";
         internal static readonly string FirstWordNotInSForm = "First word cannot be in -s -es form";
         internal static readonly string MustStartWithTwoSlashes = "Must start with //";
+        internal static readonly string ExtraLine = "Extra empty line space";
+        internal static readonly string MissingEmptyLine = "Missing empty line space";
     }
 }
