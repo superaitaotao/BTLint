@@ -1,19 +1,22 @@
 ﻿<?xml version="1.0"?>
 <package xmlns="http://schemas.microsoft.com/packaging/2011/08/nuspec.xsd">
   <metadata>
-    <id>Analyzer1</id>
+    <id>BTLint</id>
     <version>1.0.0.0</version>
-    <title>Analyzer1</title>
+    <title>BTLint</title>
     <authors>SXu</authors>
     <owners>SXu</owners>
     <licenseUrl>http://LICENSE_URL_HERE_OR_DELETE_THIS_LINE</licenseUrl>
     <projectUrl>http://PROJECT_URL_HERE_OR_DELETE_THIS_LINE</projectUrl>
     <iconUrl>http://ICON_URL_HERE_OR_DELETE_THIS_LINE</iconUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
-    <description>Analyzer1</description>
-    <releaseNotes>Summary of changes made in this release of the package.</releaseNotes>
+    <description>BTLint</description>
+    <releaseNotes>
+      BTLint highlights some formatting issues in C# code. 
+      It only covers those issues that are not handled by default formatting tools in Visual Studio.
+    </releaseNotes>
     <copyright>Copyright</copyright>
-    <tags>Analyzer1, analyzers</tags>
+    <tags>BTLint, BitTitan</tags>
     <frameworkAssemblies>
       <frameworkAssembly assemblyName="System" targetFramework="" />
     </frameworkAssemblies>

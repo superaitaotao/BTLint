@@ -34,8 +34,8 @@
     <ProjectGuid>{342D9C2D-3C94-44FA-A22F-841858474C7B}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>Analyzer1.Vsix</RootNamespace>
-    <AssemblyName>Analyzer1.Vsix</AssemblyName>
+    <RootNamespace>BTLint.Vsix</RootNamespace>
+    <AssemblyName>BTLint</AssemblyName>
     <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
     <GeneratePkgDefFile>false</GeneratePkgDefFile>
     <IncludeAssemblyInVSIXContainer>false</IncludeAssemblyInVSIXContainer>
@@ -73,9 +73,11 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Analyzer1\Analyzer1.csproj">
+    <ProjectReference Include="..\Analyzer1\BTLint.csproj">
       <Project>{E5653F8E-D84F-4C86-ADC4-14D5B5CF1568}</Project>
-      <Name>Analyzer1</Name>
+      <Name>BTLint</Name>
+      <IncludeOutputGroupsInVSIX>BuiltProjectOutputGroup%3bBuiltProjectOutputGroupDependencies%3bGetCopyToOutputDirectoryItems%3bSatelliteDllsProjectOutputGroup%3b</IncludeOutputGroupsInVSIX>
+      <IncludeOutputGroupsInVSIXLocalOnly>DebugSymbolsProjectOutputGroup%3b</IncludeOutputGroupsInVSIXLocalOnly>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>

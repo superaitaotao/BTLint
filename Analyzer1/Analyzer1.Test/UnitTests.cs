@@ -76,7 +76,7 @@ namespace Analyzer1.Test
 
         protected override DiagnosticAnalyzer GetCSharpDiagnosticAnalyzer()
         {
-            return new CommentAnalyzer();
+            return new BTAnalyzer();
         }
     }
 }

@@ -10,8 +10,8 @@
     <ProjectGuid>{E5653F8E-D84F-4C86-ADC4-14D5B5CF1568}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>Analyzer1</RootNamespace>
-    <AssemblyName>Analyzer1</AssemblyName>
+    <RootNamespace>BTLint</RootNamespace>
+    <AssemblyName>BTLint</AssemblyName>
     <ProjectTypeGuids>{786C830F-07A1-408B-BD7F-6EE04809D6DB};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
     <TargetFrameworkProfile>Profile7</TargetFrameworkProfile>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
@@ -36,7 +36,7 @@
   <ItemGroup>
     <Compile Include="CodeFixProvider.cs" />
     <Compile Include="ErrorCode.cs" />
-    <Compile Include="MyDiagnosticAnalyzer.cs" />
+    <Compile Include="BTAnalyzer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Resources.Designer.cs">
       <AutoGen>True</AutoGen>

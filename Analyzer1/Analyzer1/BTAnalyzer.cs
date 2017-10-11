@@ -13,12 +13,12 @@ namespace Analyzer1
     /// An analyzer for comments.
     /// </summary>
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
-    public class CommentAnalyzer : DiagnosticAnalyzer
+    public class BTAnalyzer : DiagnosticAnalyzer
     {
         /// <summary>
         /// Diagnostic ID.
         /// </summary>
-        public const string DiagnosticId = nameof(CommentAnalyzer);
+        public const string DiagnosticId = "BTLint";
 
         /// <summary>
         /// Category.
@@ -28,7 +28,7 @@ namespace Analyzer1
         /// <summary>
         /// Class comment rule.
         /// </summary>
-        private static DiagnosticDescriptor Rule = new DiagnosticDescriptor(CommentAnalyzer.DiagnosticId, "Class comment error", "{0}", Category, DiagnosticSeverity.Warning, true);
+        private static DiagnosticDescriptor Rule = new DiagnosticDescriptor(BTAnalyzer.DiagnosticId, "Class comment error", "{0}", Category, DiagnosticSeverity.Warning, true);
 
         /// <summary>
         /// Supported Diagnostics.
@@ -48,42 +48,19 @@ namespace Analyzer1
 
         private static void AnalyzeMethodDeclaration(SyntaxNodeAnalysisContext context)
         {
-            CommentAnalyzer.AnalyzeSummaryComments(context);
+            BTAnalyzer.AnalyzeSummaryComments(context);
         }
 
         private static void AnalyzeClassDeclaration(SyntaxNodeAnalysisContext context)
         {
-            CommentAnalyzer.AnalyzeSummaryComments(context);
+            BTAnalyzer.AnalyzeSummaryComments(context);
         }
 
         private static void AnalyzeInsideMethod(CodeBlockAnalysisContext context)
         {
-            CommentAnalyzer.AnalyzeInsideMethodComment(context);
-            CommentAnalyzer.AnalyzeBlockEmptyLines(context);
-        }
-
-        /// <summary>
-        /// Gets parameter comments in a single line documentation trivia.
-        /// </summary>
-        /// <param name="singleLineDocumentationTrivia">Single line documentation trivia.</param>
-        /// <returns>A list of parameter comment syntax.</returns>
-        private static List<Tuple<XmlElementSyntax, string>> GetParamComments(SyntaxTrivia singleLineDocumentationTrivia)
-        {
-            List<Tuple<XmlElementSyntax, string>> paramCommentList = new List<Tuple<XmlElementSyntax, string>>();
-            if (!singleLineDocumentationTrivia.HasStructure)
-                return paramCommentList;
-
-            SyntaxNode commentNode = singleLineDocumentationTrivia.GetStructure();
-            foreach (SyntaxNode node in commentNode.ChildNodes())
-            {
-                XmlElementSyntax xmlElement = node as XmlElementSyntax;
-                if (xmlElement != null && "param" == xmlElement.StartTag.Name.LocalName.ToString())
-                {
-                    XmlNameAttributeSyntax xmlNameAttribute = xmlElement.StartTag.Attributes.FirstOrDefault() as XmlNameAttributeSyntax;
-                    paramCommentList.Add(Tuple.Create(xmlElement, xmlNameAttribute.Identifier.ToString()));
-                }
-            }
-            return paramCommentList;
+            BTAnalyzer.AnalyzeInsideMethodComment(context);
+            BTAnalyzer.AnalyzeBlockEmptyLines(context);
+            BTAnalyzer.AnalyzeEqualStatements(context);
         }
 
         private static readonly StringValidator.Validate[] SummaryTextValidators = new StringValidator.Validate[]
@@ -124,6 +101,36 @@ namespace Analyzer1
             StringValidator.FirstWordNotInSForm
         };
 
+        private static void AnalyzeEqualStatements(CodeBlockAnalysisContext context)
+        {
+            MethodDeclarationSyntax methodDeclaration = context.CodeBlock as MethodDeclarationSyntax;
+            IEnumerable<SyntaxNode> equalFamilyExpressions = methodDeclaration.DescendantNodes().Where(node => BTAnalyzer.IsEqualFamilyExpression(node.Kind()));
+            foreach(SyntaxNode equalNode in equalFamilyExpressions)
+            {
+                SyntaxNode[] twoSideExpressionNodes = equalNode.ChildNodes().ToArray();
+                if(twoSideExpressionNodes.Count() != 2)
+                {
+                    context.ReportDiagnostic(Diagnostic.Create(BTAnalyzer.Rule, equalNode.GetLocation(), ErrorCode.InvalidExpression));
+                    continue;
+                }
+
+                if(!BTAnalyzer.IsConstant(twoSideExpressionNodes[0]) && BTAnalyzer.IsConstant(twoSideExpressionNodes[1]))
+                    context.ReportDiagnostic(Diagnostic.Create(BTAnalyzer.Rule, equalNode.GetLocation(), ErrorCode.ConstantOnLeft));
+            }
+        }
+
+        private static bool IsConstant(SyntaxNode syntaxNode)
+        {
+            if (syntaxNode.Kind() == SyntaxKind.NumericLiteralExpression || syntaxNode.Kind() == SyntaxKind.StringLiteralExpression || char.IsUpper(syntaxNode.ToString()[0]))
+                return true;
+
+            SyntaxNode firstNode = syntaxNode.ChildNodes().FirstOrDefault();
+            if (null == firstNode)
+                return false;
+
+            return firstNode.Kind() == SyntaxKind.PredefinedType;
+        }
+
         /// <summary>
         /// Analyze comment inside block.
         /// </summary>
@@ -145,15 +152,15 @@ namespace Analyzer1
             {
                 if (!StringValidator.StartWithTwoSlashes(singleLineComment.ToString(), ref message))
                 {
-                    context.ReportDiagnostic(Diagnostic.Create(CommentAnalyzer.Rule, singleLineComment.GetLocation(), message));
+                    context.ReportDiagnostic(Diagnostic.Create(BTAnalyzer.Rule, singleLineComment.GetLocation(), message));
                     continue;
                 }
 
                 string trimmedText = singleLineComment.ToString().Substring(3);
-                foreach (StringValidator.Validate validate in CommentAnalyzer.NormalCommentValidator)
+                foreach (StringValidator.Validate validate in BTAnalyzer.NormalCommentValidator)
                 {
                     if (!validate(trimmedText, ref message))
-                        context.ReportDiagnostic(Diagnostic.Create(CommentAnalyzer.Rule, singleLineComment.GetLocation(), message));
+                        context.ReportDiagnostic(Diagnostic.Create(BTAnalyzer.Rule, singleLineComment.GetLocation(), message));
                 }
             }
         }
@@ -219,7 +226,7 @@ namespace Analyzer1
                 {
                     if (blockObjectList[i].Item2 == SyntaxKind.EndOfLineTrivia)
                     {
-                        context.ReportDiagnostic(Diagnostic.Create(CommentAnalyzer.Rule, ((SyntaxTrivia)trimmedBlockObjectList[i].Item1).GetLocation(), ErrorCode.ExtraLine));
+                        context.ReportDiagnostic(Diagnostic.Create(BTAnalyzer.Rule, ((SyntaxTrivia)trimmedBlockObjectList[i].Item1).GetLocation(), ErrorCode.ExtraLine));
                     }
                     else
                         break;
@@ -233,21 +240,21 @@ namespace Analyzer1
 
                     if (i < trimmedBlockObjectList.Count())
                     {
-                        if (i - 1 < 0 || trimmedBlockObjectList[i - 1].Item2 != SyntaxKind.SingleLineCommentTrivia)
-                            context.ReportDiagnostic(Diagnostic.Create(CommentAnalyzer.Rule, ((SyntaxNode)trimmedBlockObjectList[i].Item1).GetLocation(), ErrorCode.MissingComment));
+                        if ((i - 1 < 0 || trimmedBlockObjectList[i - 1].Item2 != SyntaxKind.SingleLineCommentTrivia) && (trimmedBlockObjectList.Count > 1))
+                            context.ReportDiagnostic(Diagnostic.Create(BTAnalyzer.Rule, ((SyntaxNode)trimmedBlockObjectList[i].Item1).GetLocation(), ErrorCode.MissingComment));
                     }
 
                     while (i < trimmedBlockObjectList.Count() && trimmedBlockObjectList[i].Item2 == SyntaxKind.None)
                         i++;
 
                     if (i < trimmedBlockObjectList.Count() && trimmedBlockObjectList[i].Item2 != SyntaxKind.EndOfLineTrivia)
-                        context.ReportDiagnostic(Diagnostic.Create(CommentAnalyzer.Rule, ((SyntaxTrivia)trimmedBlockObjectList[i].Item1).GetLocation(), ErrorCode.MissingEmptyLine));
+                        context.ReportDiagnostic(Diagnostic.Create(BTAnalyzer.Rule, ((SyntaxTrivia)trimmedBlockObjectList[i].Item1).GetLocation(), ErrorCode.MissingEmptyLine));
                 }
 
                 // Cannot end with empty lines
-                IEnumerable<SyntaxTrivia> endingEmptyLines = block.CloseBraceToken.LeadingTrivia;
-                if (endingEmptyLines.Count() > 0)
-                    context.ReportDiagnostic(Diagnostic.Create(CommentAnalyzer.Rule, block.CloseBraceToken.GetLocation(), ErrorCode.UnexpectedComponentsBeforeClosingBracket));
+                IEnumerable<SyntaxTrivia> triviaBeforeClosingBrackets = block.CloseBraceToken.LeadingTrivia;
+                if (triviaBeforeClosingBrackets.Count() > 1)
+                    context.ReportDiagnostic(Diagnostic.Create(BTAnalyzer.Rule, block.CloseBraceToken.GetLocation(), ErrorCode.UnexpectedComponentsBeforeClosingBracket));
             }
         }
 
@@ -268,7 +275,7 @@ namespace Analyzer1
             IEnumerable<SyntaxTrivia> singleLineCommentTrivias = firstToken?.GetAllTrivia().Where(trivia => SyntaxKind.SingleLineCommentTrivia == trivia.Kind());
             if (0 < singleLineCommentTrivias.Count())
             {
-                CommentAnalyzer.ReportDiagnostic(context, singleLineCommentTrivias.First().GetLocation(), ErrorCode.ClassCommentStart);
+                BTAnalyzer.ReportDiagnostic(context, singleLineCommentTrivias.First().GetLocation(), ErrorCode.ClassCommentStart);
                 return;
             }
 
@@ -276,12 +283,12 @@ namespace Analyzer1
             IEnumerable<SyntaxTrivia> singleDocumentationCommentTrivias = firstToken?.GetAllTrivia().Where(trivia => SyntaxKind.SingleLineDocumentationCommentTrivia == trivia.Kind());
             if (0 == singleDocumentationCommentTrivias.Count())
             {
-                CommentAnalyzer.ReportDiagnostic(context, declarationNode.GetFirstToken().GetLocation(), ErrorCode.MissingComment);
+                BTAnalyzer.ReportDiagnostic(context, declarationNode.GetFirstToken().GetLocation(), ErrorCode.MissingComment);
                 return;
             }
             else if (1 < singleDocumentationCommentTrivias.Count())
             {
-                CommentAnalyzer.ReportDiagnostic(context, declarationNode.GetFirstToken().GetLocation(), ErrorCode.InvalideXmlComment);
+                BTAnalyzer.ReportDiagnostic(context, declarationNode.GetFirstToken().GetLocation(), ErrorCode.InvalideXmlComment);
                 return;
             }
 
@@ -291,10 +298,10 @@ namespace Analyzer1
             List<Location> locationList = new List<Location>();
             List<string> paramCommentNameList = new List<string>();
             int returnCount = 0;
-            if (!CommentAnalyzer.CheckDocumentationCommentTrivia(singleDocCommentTrivia, ref messageList, ref locationList, ref paramCommentNameList, ref returnCount))
+            if (!BTAnalyzer.CheckDocumentationCommentTrivia(singleDocCommentTrivia, ref messageList, ref locationList, ref paramCommentNameList, ref returnCount))
             {
                 for (int i = 0; i < messageList.Count(); i++)
-                    CommentAnalyzer.ReportDiagnostic(context, locationList[i], messageList[i]);
+                    BTAnalyzer.ReportDiagnostic(context, locationList[i], messageList[i]);
             }
 
             // Check method declaration
@@ -306,14 +313,14 @@ namespace Analyzer1
             // Check parameter comment count
             IEnumerable<ParameterSyntax> parameters = methodDeclarationSyntax.ParameterList.Parameters;
             if (paramCommentNameList.Count() != parameters.Count())
-                CommentAnalyzer.ReportDiagnostic(context, methodDeclarationSyntax.ParameterList.GetLocation(), ErrorCode.IncompatibleParamComments);
+                BTAnalyzer.ReportDiagnostic(context, methodDeclarationSyntax.ParameterList.GetLocation(), ErrorCode.IncompatibleParamComments);
 
             // Check that all parameters have comment
             foreach (ParameterSyntax parameter in parameters)
             {
                 if (!paramCommentNameList.Any(p => p == parameter.Identifier.Text))
                 {
-                    CommentAnalyzer.ReportDiagnostic(context, parameter.GetLocation(), ErrorCode.MissingParamComment);
+                    BTAnalyzer.ReportDiagnostic(context, parameter.GetLocation(), ErrorCode.MissingParamComment);
                     break;
                 }
             }
@@ -323,7 +330,7 @@ namespace Analyzer1
             {
                 if (0 < returnCount)
                 {
-                    CommentAnalyzer.ReportDiagnostic(context, methodDeclarationSyntax.ReturnType.GetLocation(), ErrorCode.IncorrectReturnComment);
+                    BTAnalyzer.ReportDiagnostic(context, methodDeclarationSyntax.ReturnType.GetLocation(), ErrorCode.IncorrectReturnComment);
                     return;
                 }
             }
@@ -331,7 +338,7 @@ namespace Analyzer1
             {
                 if (1 != returnCount)
                 {
-                    CommentAnalyzer.ReportDiagnostic(context, methodDeclarationSyntax.ReturnType.GetLocation(), ErrorCode.IncorrectReturnComment);
+                    BTAnalyzer.ReportDiagnostic(context, methodDeclarationSyntax.ReturnType.GetLocation(), ErrorCode.IncorrectReturnComment);
                     return;
                 }
             }
@@ -368,7 +375,7 @@ namespace Analyzer1
                 {
                     case "summary":
                     {
-                        if (!CommentAnalyzer.CheckSummaryElement(xmlElement, ref location, ref message))
+                        if (!BTAnalyzer.CheckSummaryElement(xmlElement, ref location, ref message))
                         {
                             result = false;
                             messageList.Add(message);
@@ -379,7 +386,7 @@ namespace Analyzer1
 
                     case "param":
                     {
-                        if (!CommentAnalyzer.CheckParamElement(xmlElement, ref location, ref message, ref paramCommentNameList))
+                        if (!BTAnalyzer.CheckParamElement(xmlElement, ref location, ref message, ref paramCommentNameList))
                         {
                             result = false;
                             messageList.Add(message);
@@ -390,7 +397,7 @@ namespace Analyzer1
 
                     case "returns":
                     {
-                        if (!CommentAnalyzer.CheckReturnElement(xmlElement, ref location, ref message, ref returnCount))
+                        if (!BTAnalyzer.CheckReturnElement(xmlElement, ref location, ref message, ref returnCount))
                         {
                             result = false;
                             messageList.Add(message);
@@ -418,7 +425,7 @@ namespace Analyzer1
         private static bool CheckReturnElement(XmlElementSyntax xmlElement, ref Location location, ref string message, ref int returnCount)
         {
             // Check tags
-            if (!CommentAnalyzer.CheckXmlTags(xmlElement, ref location, ref message))
+            if (!BTAnalyzer.CheckXmlTags(xmlElement, ref location, ref message))
                 return false;
 
             // Increment number of <returns>
@@ -428,7 +435,7 @@ namespace Analyzer1
             IEnumerable<SyntaxToken> xmlTextLiteralTokens = xmlElement.DescendantTokens().Where(token => SyntaxKind.XmlTextLiteralToken == token.Kind());
             foreach (SyntaxToken xmlTextLiteralToken in xmlTextLiteralTokens)
             {
-                foreach (StringValidator.Validate validate in CommentAnalyzer.ReturnTextValidators)
+                foreach (StringValidator.Validate validate in BTAnalyzer.ReturnTextValidators)
                 {
                     if (!validate(xmlTextLiteralToken.Text, ref message))
                     {
@@ -452,7 +459,7 @@ namespace Analyzer1
         private static bool CheckParamElement(XmlElementSyntax xmlElement, ref Location location, ref string message, ref List<string> paramCommentNameList)
         {
             // Check tags
-            if (!CommentAnalyzer.CheckXmlTags(xmlElement, ref location, ref message))
+            if (!BTAnalyzer.CheckXmlTags(xmlElement, ref location, ref message))
                 return false;
 
             // Add param name to the list
@@ -469,7 +476,7 @@ namespace Analyzer1
             IEnumerable<SyntaxToken> xmlTextLiteralTokens = xmlElement.DescendantTokens().Where(token => SyntaxKind.XmlTextLiteralToken == token.Kind());
             foreach (SyntaxToken xmlTextLiteralToken in xmlTextLiteralTokens)
             {
-                foreach (StringValidator.Validate validate in CommentAnalyzer.ParamTextValidators)
+                foreach (StringValidator.Validate validate in BTAnalyzer.ParamTextValidators)
                 {
                     if (!validate(xmlTextLiteralToken.Text, ref message))
                     {
@@ -493,7 +500,7 @@ namespace Analyzer1
         private static bool CheckSummaryElement(XmlElementSyntax xmlElement, ref Location location, ref string message)
         {
             // Check xml start/end tags
-            if (!CommentAnalyzer.CheckXmlTags(xmlElement, ref location, ref message))
+            if (!BTAnalyzer.CheckXmlTags(xmlElement, ref location, ref message))
                 return false;
 
             // Check XML element text
@@ -507,7 +514,7 @@ namespace Analyzer1
                     continue;
 
                 // Validate text
-                foreach (StringValidator.Validate validate in CommentAnalyzer.SummaryTextValidators)
+                foreach (StringValidator.Validate validate in BTAnalyzer.SummaryTextValidators)
                 {
                     if (!validate(xmlTextLiteralToken.Text, ref message))
                     {
@@ -540,7 +547,7 @@ namespace Analyzer1
             }
 
             // Only allows summary or param tag
-            if (!CommentAnalyzer.IsValidXmlCommentTag(startTag) || !CommentAnalyzer.IsValidXmlCommentTag(endTag))
+            if (!BTAnalyzer.IsValidXmlCommentTag(startTag) || !BTAnalyzer.IsValidXmlCommentTag(endTag))
             {
                 message = ErrorCode.InvalidXmlTag;
                 location = xmlElement.GetLocation();
@@ -560,6 +567,16 @@ namespace Analyzer1
         private static bool IsValidXmlCommentTag(string tagName)
         {
             return "summary" == tagName || "param" == tagName || "returns" == tagName;
+        }
+
+        private static bool IsEqualFamilyExpression(SyntaxKind kind)
+        {
+            return kind == SyntaxKind.EqualsExpression
+                || kind == SyntaxKind.NotEqualsExpression
+                || kind == SyntaxKind.LessThanExpression
+                || kind == SyntaxKind.LessThanOrEqualExpression
+                || kind == SyntaxKind.GreaterThanExpression
+            || kind == SyntaxKind.GreaterThanOrEqualExpression;
         }
     }
 }

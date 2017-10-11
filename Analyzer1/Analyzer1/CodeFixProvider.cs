@@ -22,7 +22,7 @@ namespace Analyzer1
 
         public sealed override ImmutableArray<string> FixableDiagnosticIds
         {
-            get { return ImmutableArray.Create(CommentAnalyzer.DiagnosticId); }
+            get { return ImmutableArray.Create(BTAnalyzer.DiagnosticId); }
         }
 
         public sealed override FixAllProvider GetFixAllProvider()

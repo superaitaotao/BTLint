@@ -115,10 +115,10 @@ namespace Analyzer1
         public static bool FirstWordInSForm(string text, ref string message)
         {
             // Trim string
-            string trimmedText = text.Trim();
+            string trimmedText = text.Trim(' ', '.');
 
             // First word should be a verb with s or es
-            if (!(trimmedText.Split(' ')[0].EndsWith("s") && (!trimmedText.Split(' ')[0].EndsWith("es"))))
+            if (!trimmedText.Split(' ')[0].EndsWith("s") && !trimmedText.Split(' ')[0].EndsWith("es"))
             {
                 message = ErrorCode.FirstWordMustBeSForm;
                 return false;

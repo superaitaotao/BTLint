@@ -24,5 +24,7 @@
         internal static readonly string ExtraLine = "Extra empty line space";
         internal static readonly string MissingEmptyLine = "Missing empty line space";
         internal static readonly string UnexpectedComponentsBeforeClosingBracket = "Unexpected components before closing bracket";
+        internal static readonly string InvalidExpression = "Invalid expression";
+        internal static readonly string ConstantOnLeft = "Constant should be on the left hand side";
     }
 }
