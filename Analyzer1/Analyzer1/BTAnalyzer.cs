@@ -90,7 +90,7 @@ namespace Analyzer1
             // Analyze comments inside methods
             BTAnalyzer.AnalyzeInsideMethodComment(context);
             BTAnalyzer.AnalyzeBlockEmptyLines(context);
-            BTAnalyzer.AnalyzeEqualStatements(context);
+            BTAnalyzer.AnalyzeLogicalExpressions(context);
         }
 
         /// <summary>
@@ -158,11 +158,15 @@ namespace Analyzer1
         /// Analyzes equal comments.
         /// </summary>
         /// <param name="context">Context.</param>
-        private static void AnalyzeEqualStatements(SyntaxNodeAnalysisContext context)
+        private static void AnalyzeLogicalExpressions(SyntaxNodeAnalysisContext context)
         {
+            // Get method declaration node
             MethodDeclarationSyntax methodDeclaration = context.Node as MethodDeclarationSyntax;
             if (methodDeclaration == null)
                 return;
+
+            // Get all equal family expressions
+            // Check that constants are on the left
             IEnumerable<SyntaxNode> equalFamilyExpressions = methodDeclaration.DescendantNodes().Where(node => BTAnalyzer.IsEqualFamilyExpression(node.Kind()) && node.Parent.Kind() != SyntaxKind.ForStatement);
             foreach (SyntaxNode equalNode in equalFamilyExpressions)
             {
@@ -175,6 +179,34 @@ namespace Analyzer1
                 if (!BTAnalyzer.IsConstant(twoSideExpressionNodes[0]) && BTAnalyzer.IsConstant(twoSideExpressionNodes[1]))
                     context.ReportDiagnostic(Diagnostic.Create(BTAnalyzer.Rule, equalNode.GetLocation(), ErrorCode.ConstantOnLeft));
             }
+
+            // Get all logical expressions
+            // Check that full parenthization is used in logical expressions
+            IEnumerable<SyntaxNode> logicalExpressions = methodDeclaration.DescendantNodes().Where(node => BTAnalyzer.IsLogicalExpression(node.Kind()));
+            foreach (SyntaxNode logicalNode in logicalExpressions)
+            {
+                foreach (SyntaxNode node in logicalNode.ChildNodes().Where(node => BTAnalyzer.IsEqualFamilyExpression(node.Kind())))
+                {
+                    context.ReportDiagnostic(Diagnostic.Create(BTAnalyzer.Rule, node.GetLocation(), ErrorCode.MissingFullParenthization));
+                }
+            }
+
+            // Check that statements with 1 expression statement should ignore parenthesis
+            IEnumerable<SyntaxNode> blockStatements = methodDeclaration.DescendantNodes().Where(node => BTAnalyzer.IsBlockStatement(node.Kind()));
+            foreach (SyntaxNode node in blockStatements)
+            {
+                BlockSyntax block = node.ChildNodes().Where(nodee => SyntaxKind.Block == nodee.Kind()).OfType<BlockSyntax>().FirstOrDefault();
+                if (block == null)
+                {
+                    continue;
+                }
+
+                IEnumerable<SyntaxNode> expressionNodes = block.ChildNodes().Where(nodee => SyntaxKind.ExpressionStatement == nodee.Kind());
+                if (expressionNodes.Count() == 1 && block.ChildNodes().Count() == 1)
+                    context.ReportDiagnostic(Diagnostic.Create(BTAnalyzer.Rule, node.GetLocation(), ErrorCode.UnnecessaryBlock));
+
+            }
+
         }
 
         /// <summary>
@@ -708,6 +740,33 @@ namespace Analyzer1
                 || kind == SyntaxKind.LessThanOrEqualExpression
                 || kind == SyntaxKind.GreaterThanExpression
             || kind == SyntaxKind.GreaterThanOrEqualExpression;
+        }
+
+        /// <summary>
+        /// Checks whether the expression is a logical expression.
+        /// </summary>
+        /// <param name="kind">Kind of node.</param>
+        /// <returns>True if logical expression.</returns>
+        private static bool IsLogicalExpression(SyntaxKind kind)
+        {
+            return kind == SyntaxKind.LogicalAndExpression
+                || kind == SyntaxKind.LogicalNotExpression
+                || kind == SyntaxKind.LogicalOrExpression;
+        }
+
+        /// <summary>
+        /// Checks whether the expression is a block statements.
+        /// </summary>
+        /// <param name="kind">Kind of node.</param>
+        /// <returns>True if block statements.</returns>
+        private static bool IsBlockStatement(SyntaxKind kind)
+        {
+            return kind == SyntaxKind.DoStatement
+                || kind == SyntaxKind.ForEachStatement
+                || kind == SyntaxKind.ForStatement
+                || kind == SyntaxKind.IfStatement
+                || kind == SyntaxKind.WhileStatement
+                || kind == SyntaxKind.UsingStatement;
         }
 
         /// <summary>
