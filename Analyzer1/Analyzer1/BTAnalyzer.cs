@@ -26,6 +26,11 @@ namespace Analyzer1
         private const string Category = "CommentFormatting";
 
         /// <summary>
+        /// CSharp.
+        /// </summary>
+        private const string CSharp = "C#";
+
+        /// <summary>
         /// Class comment rule.
         /// </summary>
         private static DiagnosticDescriptor Rule = new DiagnosticDescriptor(BTAnalyzer.DiagnosticId, "Class comment error", "{0}", Category, DiagnosticSeverity.Warning, true);
@@ -58,6 +63,8 @@ namespace Analyzer1
         /// <param name="context">Syntax node analysis context.</param>
         private static void AnalyzeMethodDeclaration(SyntaxNodeAnalysisContext context)
         {
+            if (context.Node.Language != BTAnalyzer.CSharp)
+                return;
             BTAnalyzer.AnalyzeSummaryComments(context);
         }
 
@@ -67,6 +74,8 @@ namespace Analyzer1
         /// <param name="context">Syntax node analysis context.</param>
         private static void AnalyzeClassDeclaration(SyntaxNodeAnalysisContext context)
         {
+            if (context.Node.Language != BTAnalyzer.CSharp)
+                return;
             BTAnalyzer.AnalyzeSummaryComments(context);
         }
 
@@ -76,6 +85,8 @@ namespace Analyzer1
         /// <param name="context">Code block analysis context.</param>
         private static void AnalyzeInsideMethod(SyntaxNodeAnalysisContext context)
         {
+            if (context.Node.Language != BTAnalyzer.CSharp)
+                return;
             // Analyze comments inside methods
             BTAnalyzer.AnalyzeInsideMethodComment(context);
             BTAnalyzer.AnalyzeBlockEmptyLines(context);
@@ -152,7 +163,7 @@ namespace Analyzer1
             MethodDeclarationSyntax methodDeclaration = context.Node as MethodDeclarationSyntax;
             if (methodDeclaration == null)
                 return;
-            IEnumerable<SyntaxNode> equalFamilyExpressions = methodDeclaration.DescendantNodes().Where(node => BTAnalyzer.IsEqualFamilyExpression(node.Kind()));
+            IEnumerable<SyntaxNode> equalFamilyExpressions = methodDeclaration.DescendantNodes().Where(node => BTAnalyzer.IsEqualFamilyExpression(node.Kind()) && node.Parent.Kind() != SyntaxKind.ForStatement);
             foreach (SyntaxNode equalNode in equalFamilyExpressions)
             {
                 SyntaxNode[] twoSideExpressionNodes = equalNode.ChildNodes().ToArray();
