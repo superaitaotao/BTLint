@@ -161,7 +161,7 @@ namespace BTAnalyzer
 
             // Get all equal family expressions
             // Check that constants are on the left
-            IEnumerable<SyntaxNode> equalFamilyExpressions = methodDeclaration.DescendantNodes().Where(node => BTAnalyzer.IsEqualFamilyExpression(node.Kind()) && node.Parent.Kind() != SyntaxKind.ForStatement);
+            IEnumerable<SyntaxNode> equalFamilyExpressions = methodDeclaration.DescendantNodes().Where(node => BTAnalyzer.IsEqualFamilyExpression(node.Kind()) && (SyntaxKind.ForStatement != node.Parent.Kind()));
             foreach (SyntaxNode equalNode in equalFamilyExpressions)
             {
                 SyntaxNode[] twoSideExpressionNodes = equalNode.ChildNodes().ToArray();
@@ -192,13 +192,10 @@ namespace BTAnalyzer
                 {
                     continue;
                 }
-
                 IEnumerable<SyntaxNode> expressionNodes = block.ChildNodes().Where(nodee => SyntaxKind.ExpressionStatement == nodee.Kind());
                 if ((1 == expressionNodes.Count()) && (1 == block.ChildNodes().Count()))
                     context.ReportDiagnostic(Diagnostic.Create(BTAnalyzer.Rule, node.GetLocation(), ErrorCode.UnnecessaryBlock));
-
             }
-
         }
 
         /// <summary>
@@ -261,7 +258,7 @@ namespace BTAnalyzer
                     // Add trivias before the node
                     foreach (SyntaxTrivia trivia in allTrivias)
                     {
-                        if (trivia.SpanStart < node.SpanStart)
+                        if (trivia.Span.End <= node.SpanStart)
                             blockObjectList.Add(Tuple.Create<object, SyntaxKind>(trivia, trivia.Kind()));
                     }
 
@@ -271,7 +268,7 @@ namespace BTAnalyzer
                     // Add trivia after the node
                     foreach (SyntaxTrivia trivia in allTrivias)
                     {
-                        if ((trivia.SpanStart >= node.SpanStart) && !isBlockNode)
+                        if ((trivia.SpanStart >= node.Span.End) && !isBlockNode)
                             blockObjectList.Add(Tuple.Create<object, SyntaxKind>(trivia, trivia.Kind()));
                     }
 
@@ -319,7 +316,7 @@ namespace BTAnalyzer
                     // Check for missing comment
                     if (i < trimmedBlockObjectList.Count())
                     {
-                        if (((0 < i - 1) || (SyntaxKind.SingleLineCommentTrivia != trimmedBlockObjectList[i - 1].Item2)) && !isOnlySyntaxNode)
+                        if ((0 < i - 1) && (SyntaxKind.SingleLineCommentTrivia != trimmedBlockObjectList[i - 1].Item2) && !isOnlySyntaxNode)
                         {
                             SyntaxNode node = (SyntaxNode)trimmedBlockObjectList[i].Item1;
                             context.ReportDiagnostic(Diagnostic.Create(BTAnalyzer.Rule, Location.Create(node.SyntaxTree, new Microsoft.CodeAnalysis.Text.TextSpan(node.SpanStart, 10)), ErrorCode.MissingComment));
@@ -627,7 +624,7 @@ namespace BTAnalyzer
 
             // Check XML element text
             SyntaxToken[] xmlTextLiteralTokens = xmlTextNode.DescendantTokens().Where(token => SyntaxKind.XmlTextLiteralToken == token.Kind()).ToArray();
-            SyntaxToken[] newlineTokerns = xmlTextNode.DescendantTokens().Where(token => token.Kind() == SyntaxKind.XmlTextLiteralNewLineToken).ToArray();
+            SyntaxToken[] newlineTokerns = xmlTextNode.DescendantTokens().Where(token => SyntaxKind.XmlTextLiteralNewLineToken == token.Kind()).ToArray();
             if (xmlTextLiteralTokens.Count() != newlineTokerns.Count())
             {
                 message = ErrorCode.ErrorsInComment;
@@ -760,11 +757,11 @@ namespace BTAnalyzer
         /// <returns>True if block statements.</returns>
         private static bool IsBlockStatement(SyntaxKind kind)
         {
-            return (SyntaxKind.DoStatement== kind) 
-                || (SyntaxKind.ForEachStatement== kind) 
-                || (SyntaxKind.ForStatement== kind) 
-                || (SyntaxKind.IfStatement== kind) 
-                || (SyntaxKind.WhileStatement== kind) 
+            return (SyntaxKind.DoStatement == kind)
+                || (SyntaxKind.ForEachStatement == kind)
+                || (SyntaxKind.ForStatement == kind)
+                || (SyntaxKind.IfStatement == kind)
+                || (SyntaxKind.WhileStatement == kind)
                 || (SyntaxKind.UsingStatement == kind);
         }
 
