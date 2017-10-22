@@ -10,7 +10,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace Analyzer1
 {
     /// <summary>
-    /// An analyzer for comments.
+    /// Analyses BT formatting issues.
     /// </summary>
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
     public class BTAnalyzer : DiagnosticAnalyzer
@@ -38,31 +38,53 @@ namespace Analyzer1
         /// <summary>
         /// Initializes.
         /// </summary>
-        /// <param name="context"></param>
+        /// <param name="context">Context.</param>
         public override void Initialize(AnalysisContext context)
         {
-            context.RegisterSyntaxNodeAction(AnalyzeMethodDeclaration, SyntaxKind.MethodDeclaration);
-            context.RegisterSyntaxNodeAction(AnalyzeClassDeclaration, SyntaxKind.ClassDeclaration);
-            context.RegisterCodeBlockAction(AnalyzeInsideMethod);
+            // Analyze method, constructor declarations
+            context.RegisterSyntaxNodeAction(AnalyzeMethodDeclaration, SyntaxKind.MethodDeclaration, SyntaxKind.ConstructorDeclaration, SyntaxKind.FieldDeclaration);
+
+            // Analyze class, field, property, interface, enum, delegate, event declarations
+            context.RegisterSyntaxNodeAction(AnalyzeClassDeclaration, SyntaxKind.ClassDeclaration, SyntaxKind.StructDeclaration, SyntaxKind.InterfaceDeclaration, SyntaxKind.EnumDeclaration, SyntaxKind.DelegateDeclaration,
+                SyntaxKind.EventDeclaration, SyntaxKind.EventFieldDeclaration);
+
+            // Analyze inside method items
+            context.RegisterSyntaxNodeAction(AnalyzeInsideMethod, SyntaxKind.MethodDeclaration);
         }
 
+        /// <summary>
+        /// Analyzes method declaration.
+        /// </summary>
+        /// <param name="context">Syntax node analysis context.</param>
         private static void AnalyzeMethodDeclaration(SyntaxNodeAnalysisContext context)
         {
             BTAnalyzer.AnalyzeSummaryComments(context);
         }
 
+        /// <summary>
+        /// Analyzes class declaration.
+        /// </summary>
+        /// <param name="context">Syntax node analysis context.</param>
         private static void AnalyzeClassDeclaration(SyntaxNodeAnalysisContext context)
         {
             BTAnalyzer.AnalyzeSummaryComments(context);
         }
 
-        private static void AnalyzeInsideMethod(CodeBlockAnalysisContext context)
+        /// <summary>
+        /// Analyzes items inside methods.
+        /// </summary>
+        /// <param name="context">Code block analysis context.</param>
+        private static void AnalyzeInsideMethod(SyntaxNodeAnalysisContext context)
         {
+            // Analyze comments inside methods
             BTAnalyzer.AnalyzeInsideMethodComment(context);
             BTAnalyzer.AnalyzeBlockEmptyLines(context);
             BTAnalyzer.AnalyzeEqualStatements(context);
         }
 
+        /// <summary>
+        /// Summary text validators.
+        /// </summary>
         private static readonly StringValidator.Validate[] SummaryTextValidators = new StringValidator.Validate[]
         {
             StringValidator.CommentNotEmpty,
@@ -73,7 +95,21 @@ namespace Analyzer1
             StringValidator.FirstWordInSForm,
         };
 
+        /// <summary>
+        /// Summary text validators without start with s.
+        /// </summary>
+        private static readonly StringValidator.Validate[] SummaryTextValidatorsWithoutStartWithS = new StringValidator.Validate[]
+        {
+            StringValidator.CommentNotEmpty,
+            StringValidator.EndWithDot,
+            StringValidator.NoMultipleSpace,
+            StringValidator.StartsWithSpace,
+            StringValidator.StartWithCapitalLetter,
+        };
 
+        /// <summary>
+        /// Parameter text validators.
+        /// </summary>
         private static readonly StringValidator.Validate[] ParamTextValidators = new StringValidator.Validate[]
         {
             StringValidator.CommentNotEmpty,
@@ -83,6 +119,9 @@ namespace Analyzer1
             StringValidator.StartWithCapitalLetter,
         };
 
+        /// <summary>
+        /// Return text validators.
+        /// </summary>
         private static readonly StringValidator.Validate[] ReturnTextValidators = new StringValidator.Validate[]
         {
             StringValidator.CommentNotEmpty,
@@ -92,6 +131,9 @@ namespace Analyzer1
             StringValidator.StartWithCapitalLetter,
         };
 
+        /// <summary>
+        /// Normal comment validator.
+        /// </summary>
         private static readonly StringValidator.Validate[] NormalCommentValidator = new StringValidator.Validate[]
         {
             StringValidator.CommentNotEmpty,
@@ -101,49 +143,42 @@ namespace Analyzer1
             StringValidator.FirstWordNotInSForm
         };
 
-        private static void AnalyzeEqualStatements(CodeBlockAnalysisContext context)
+        /// <summary>
+        /// Analyzes equal comments.
+        /// </summary>
+        /// <param name="context">Context.</param>
+        private static void AnalyzeEqualStatements(SyntaxNodeAnalysisContext context)
         {
-            MethodDeclarationSyntax methodDeclaration = context.CodeBlock as MethodDeclarationSyntax;
+            MethodDeclarationSyntax methodDeclaration = context.Node as MethodDeclarationSyntax;
+            if (methodDeclaration == null)
+                return;
             IEnumerable<SyntaxNode> equalFamilyExpressions = methodDeclaration.DescendantNodes().Where(node => BTAnalyzer.IsEqualFamilyExpression(node.Kind()));
-            foreach(SyntaxNode equalNode in equalFamilyExpressions)
+            foreach (SyntaxNode equalNode in equalFamilyExpressions)
             {
                 SyntaxNode[] twoSideExpressionNodes = equalNode.ChildNodes().ToArray();
-                if(twoSideExpressionNodes.Count() != 2)
+                if (twoSideExpressionNodes.Count() != 2)
                 {
                     context.ReportDiagnostic(Diagnostic.Create(BTAnalyzer.Rule, equalNode.GetLocation(), ErrorCode.InvalidExpression));
                     continue;
                 }
-
-                if(!BTAnalyzer.IsConstant(twoSideExpressionNodes[0]) && BTAnalyzer.IsConstant(twoSideExpressionNodes[1]))
+                if (!BTAnalyzer.IsConstant(twoSideExpressionNodes[0]) && BTAnalyzer.IsConstant(twoSideExpressionNodes[1]))
                     context.ReportDiagnostic(Diagnostic.Create(BTAnalyzer.Rule, equalNode.GetLocation(), ErrorCode.ConstantOnLeft));
             }
         }
 
-        private static bool IsConstant(SyntaxNode syntaxNode)
-        {
-            if (syntaxNode.Kind() == SyntaxKind.NumericLiteralExpression || syntaxNode.Kind() == SyntaxKind.StringLiteralExpression || char.IsUpper(syntaxNode.ToString()[0]))
-                return true;
-
-            SyntaxNode firstNode = syntaxNode.ChildNodes().FirstOrDefault();
-            if (null == firstNode)
-                return false;
-
-            return firstNode.Kind() == SyntaxKind.PredefinedType;
-        }
-
         /// <summary>
-        /// Analyze comment inside block.
+        /// Analyzes comment inside block.
         /// </summary>
         /// <param name="context">Context.</param>
-        private static void AnalyzeInsideMethodComment(CodeBlockAnalysisContext context)
+        private static void AnalyzeInsideMethodComment(SyntaxNodeAnalysisContext context)
         {
             // Get the block
-            MethodDeclarationSyntax methodDeclarationSyntax = context.CodeBlock as MethodDeclarationSyntax;
+            MethodDeclarationSyntax methodDeclarationSyntax = context.Node as MethodDeclarationSyntax;
             if (methodDeclarationSyntax == null)
                 return;
 
             // Get all single line comment trivia
-            IEnumerable<SyntaxTrivia> singleLineCommentTrivias = methodDeclarationSyntax.GetTrailingTrivia().Where(trivia => SyntaxKind.SingleLineCommentTrivia == trivia.Kind() ||
+            IEnumerable<SyntaxTrivia> singleLineCommentTrivias = methodDeclarationSyntax.Body.DescendantTrivia().Where(trivia => SyntaxKind.SingleLineCommentTrivia == trivia.Kind() ||
                 SyntaxKind.SingleLineDocumentationCommentTrivia == trivia.Kind());
 
             // Iterate through each single line comment
@@ -155,7 +190,6 @@ namespace Analyzer1
                     context.ReportDiagnostic(Diagnostic.Create(BTAnalyzer.Rule, singleLineComment.GetLocation(), message));
                     continue;
                 }
-
                 string trimmedText = singleLineComment.ToString().Substring(3);
                 foreach (StringValidator.Validate validate in BTAnalyzer.NormalCommentValidator)
                 {
@@ -166,25 +200,25 @@ namespace Analyzer1
         }
 
         /// <summary>
-        /// Analyzes empty lines inside blocks
+        /// Analyzes empty lines inside blocks.
         /// </summary>
-        /// <param name="context"></param>
-        private static void AnalyzeBlockEmptyLines(CodeBlockAnalysisContext context)
+        /// <param name="context">Context.</param>
+        private static void AnalyzeBlockEmptyLines(SyntaxNodeAnalysisContext context)
         {
             // Get the block
-            MethodDeclarationSyntax methodDeclarationSyntax = context.CodeBlock as MethodDeclarationSyntax;
-            if (methodDeclarationSyntax == null)
-                return;
+            MethodDeclarationSyntax methodDeclarationSyntax = context.Node as MethodDeclarationSyntax;
             IEnumerable<BlockSyntax> blocks = methodDeclarationSyntax.DescendantNodes().Where(node => SyntaxKind.Block == node.Kind()).OfType<BlockSyntax>();
 
             // Iterate through each block
             foreach (BlockSyntax block in blocks)
             {
-                // Get a list of node, single line comment and end of line...
+                // Get a list of node, single line comment and end of line
                 List<Tuple<object, SyntaxKind>> blockObjectList = new List<Tuple<object, SyntaxKind>>();
                 foreach (SyntaxNode node in block.ChildNodes())
                 {
                     bool isNodeAdded = false;
+                    bool isBlockNode = node.ChildNodes().Any(nodee => SyntaxKind.Block == nodee.Kind());
+
                     SyntaxTrivia[] allTrivias = node.DescendantTrivia().Where(trivia => SyntaxKind.SingleLineCommentTrivia == trivia.Kind() || SyntaxKind.EndOfLineTrivia == trivia.Kind()).ToArray();
                     foreach (SyntaxTrivia trivia in allTrivias)
                     {
@@ -199,32 +233,33 @@ namespace Analyzer1
                                 blockObjectList.Add(Tuple.Create<object, SyntaxKind>(node, SyntaxKind.None));
                                 isNodeAdded = true;
                             }
-                            blockObjectList.Add(Tuple.Create<object, SyntaxKind>(trivia, trivia.Kind()));
+                            else if (!isBlockNode)
+                                blockObjectList.Add(Tuple.Create<object, SyntaxKind>(trivia, trivia.Kind()));
                         }
                     }
                 }
 
                 // Trim the block object list
-                // Remove end of line after a "sentence"
+                // Remove end of line after a statement
                 List<Tuple<object, SyntaxKind>> trimmedBlockObjectList = new List<Tuple<object, SyntaxKind>>();
-                for (int i = 0; i < blockObjectList.Count() - 1; i++)
+                for (int i = 0; i < blockObjectList.Count(); i++)
                 {
                     if (blockObjectList[i].Item2 != SyntaxKind.EndOfLineTrivia)
                     {
-                        if (blockObjectList[i + 1].Item2 == SyntaxKind.EndOfLineTrivia)
+                        if (i + 1 < blockObjectList.Count() && blockObjectList[i + 1].Item2 == SyntaxKind.EndOfLineTrivia)
                         {
                             trimmedBlockObjectList.Add(blockObjectList[i]);
                             i++;
+                            continue;
                         }
-                        continue;
                     }
                     trimmedBlockObjectList.Add(blockObjectList[i]);
                 }
 
-                //// Cannot start with empty lines
+                // Cannot start with empty lines
                 for (int i = 0; i < trimmedBlockObjectList.Count(); i++)
                 {
-                    if (blockObjectList[i].Item2 == SyntaxKind.EndOfLineTrivia)
+                    if (SyntaxKind.EndOfLineTrivia == blockObjectList[i].Item2)
                     {
                         context.ReportDiagnostic(Diagnostic.Create(BTAnalyzer.Rule, ((SyntaxTrivia)trimmedBlockObjectList[i].Item1).GetLocation(), ErrorCode.ExtraLine));
                     }
@@ -232,7 +267,10 @@ namespace Analyzer1
                         break;
                 }
 
-                // Statements should have comments before
+                // Check if there is only syntax node inside the block
+                bool isOnlySyntaxNode = trimmedBlockObjectList.All(tuple => SyntaxKind.None == tuple.Item2);
+
+                // Statement should have comments before
                 for (int i = 0; i < trimmedBlockObjectList.Count(); i++)
                 {
                     while (i < trimmedBlockObjectList.Count() && trimmedBlockObjectList[i].Item2 != SyntaxKind.None)
@@ -240,20 +278,22 @@ namespace Analyzer1
 
                     if (i < trimmedBlockObjectList.Count())
                     {
-                        if ((i - 1 < 0 || trimmedBlockObjectList[i - 1].Item2 != SyntaxKind.SingleLineCommentTrivia) && (trimmedBlockObjectList.Count > 1))
-                            context.ReportDiagnostic(Diagnostic.Create(BTAnalyzer.Rule, ((SyntaxNode)trimmedBlockObjectList[i].Item1).GetLocation(), ErrorCode.MissingComment));
+                        if ((i - 1 < 0 || SyntaxKind.SingleLineCommentTrivia != trimmedBlockObjectList[i - 1].Item2) && !isOnlySyntaxNode)
+                        {
+                            SyntaxNode node = (SyntaxNode)trimmedBlockObjectList[i].Item1;
+                            context.ReportDiagnostic(Diagnostic.Create(BTAnalyzer.Rule, Location.Create(node.SyntaxTree, new Microsoft.CodeAnalysis.Text.TextSpan(node.SpanStart, 10)), ErrorCode.MissingComment));
+                        }
                     }
-
-                    while (i < trimmedBlockObjectList.Count() && trimmedBlockObjectList[i].Item2 == SyntaxKind.None)
+                    while (i < trimmedBlockObjectList.Count() && SyntaxKind.None == trimmedBlockObjectList[i].Item2)
                         i++;
 
-                    if (i < trimmedBlockObjectList.Count() && trimmedBlockObjectList[i].Item2 != SyntaxKind.EndOfLineTrivia)
+                    if (i < trimmedBlockObjectList.Count() && SyntaxKind.EndOfLineTrivia != trimmedBlockObjectList[i].Item2)
                         context.ReportDiagnostic(Diagnostic.Create(BTAnalyzer.Rule, ((SyntaxTrivia)trimmedBlockObjectList[i].Item1).GetLocation(), ErrorCode.MissingEmptyLine));
                 }
 
                 // Cannot end with empty lines
                 IEnumerable<SyntaxTrivia> triviaBeforeClosingBrackets = block.CloseBraceToken.LeadingTrivia;
-                if (triviaBeforeClosingBrackets.Count() > 1)
+                if (1 < triviaBeforeClosingBrackets.Count())
                     context.ReportDiagnostic(Diagnostic.Create(BTAnalyzer.Rule, block.CloseBraceToken.GetLocation(), ErrorCode.UnexpectedComponentsBeforeClosingBracket));
             }
         }
@@ -264,6 +304,7 @@ namespace Analyzer1
         /// <param name="context">Context.</param>
         private static void AnalyzeSummaryComments(SyntaxNodeAnalysisContext context)
         {
+            // Get declaration node
             SyntaxNode declarationNode = context.Node;
             if (null == declarationNode)
                 return;
@@ -288,7 +329,7 @@ namespace Analyzer1
             }
             else if (1 < singleDocumentationCommentTrivias.Count())
             {
-                BTAnalyzer.ReportDiagnostic(context, declarationNode.GetFirstToken().GetLocation(), ErrorCode.InvalideXmlComment);
+                BTAnalyzer.ReportDiagnostic(context, declarationNode.GetFirstToken().GetLocation(), ErrorCode.ErrorsInComment);
                 return;
             }
 
@@ -298,7 +339,7 @@ namespace Analyzer1
             List<Location> locationList = new List<Location>();
             List<string> paramCommentNameList = new List<string>();
             int returnCount = 0;
-            if (!BTAnalyzer.CheckDocumentationCommentTrivia(singleDocCommentTrivia, ref messageList, ref locationList, ref paramCommentNameList, ref returnCount))
+            if (!BTAnalyzer.CheckDocumentationCommentTrivia(singleDocCommentTrivia, declarationNode.Kind(), ref messageList, ref locationList, ref paramCommentNameList, ref returnCount))
             {
                 for (int i = 0; i < messageList.Count(); i++)
                     BTAnalyzer.ReportDiagnostic(context, locationList[i], messageList[i]);
@@ -344,8 +385,19 @@ namespace Analyzer1
             }
         }
 
-        private static bool CheckDocumentationCommentTrivia(SyntaxTrivia commentTria, ref List<string> messageList, ref List<Location> locationList, ref List<string> paramCommentNameList, ref int returnCount)
+        /// <summary>
+        /// Checks documentation comment trivia.
+        /// </summary>
+        /// <param name="commentTria">Comment trivia.</param>
+        /// <param name="nodeKind">Kind of node.</param>
+        /// <param name="messageList">Message list.</param>
+        /// <param name="locationList">Location list.</param>
+        /// <param name="paramCommentNameList">Parameter comment name list.</param>
+        /// <param name="returnCount">Return count.</param>
+        /// <returns>Ture if there is no error.</returns>
+        private static bool CheckDocumentationCommentTrivia(SyntaxTrivia commentTria, SyntaxKind nodeKind, ref List<string> messageList, ref List<Location> locationList, ref List<string> paramCommentNameList, ref int returnCount)
         {
+            // Preset result to true
             bool result = true;
 
             // Return early if the trivia has no structure
@@ -362,7 +414,7 @@ namespace Analyzer1
             // Return false if no XML element is found 
             if (0 == xmlElements.Count())
             {
-                messageList.Add(ErrorCode.InvalideXmlComment);
+                messageList.Add(ErrorCode.ErrorsInComment);
                 return false;
             }
 
@@ -375,7 +427,7 @@ namespace Analyzer1
                 {
                     case "summary":
                     {
-                        if (!BTAnalyzer.CheckSummaryElement(xmlElement, ref location, ref message))
+                        if (!BTAnalyzer.CheckSummaryElement(nodeKind, xmlElement, ref location, ref message))
                         {
                             result = false;
                             messageList.Add(message);
@@ -406,8 +458,6 @@ namespace Analyzer1
                         break;
                     }
                 }
-                // Check summary element
-                // Check param element
             }
 
             // Return true
@@ -431,22 +481,30 @@ namespace Analyzer1
             // Increment number of <returns>
             returnCount++;
 
+            // Set location
+            location = xmlElement.GetLocation();
+
             // Check XML element text
-            IEnumerable<SyntaxToken> xmlTextLiteralTokens = xmlElement.DescendantTokens().Where(token => SyntaxKind.XmlTextLiteralToken == token.Kind());
-            foreach (SyntaxToken xmlTextLiteralToken in xmlTextLiteralTokens)
+            SyntaxNode xmlTextNode = xmlElement.DescendantNodes().Where(node => SyntaxKind.XmlText == node.Kind()).FirstOrDefault();
+            if (null == xmlTextNode)
             {
-                foreach (StringValidator.Validate validate in BTAnalyzer.ReturnTextValidators)
+                message = ErrorCode.MissingComment;
+                return false;
+            }
+
+            // Return text
+            string text = xmlTextNode.ToFullString();
+            foreach (StringValidator.Validate validate in BTAnalyzer.ReturnTextValidators)
+            {
+                if (!validate(text, ref message))
                 {
-                    if (!validate(xmlTextLiteralToken.Text, ref message))
-                    {
-                        location = xmlTextLiteralToken.GetLocation();
-                        return false;
-                    }
+                    location = xmlTextNode.GetLocation();
+                    return false;
                 }
             }
 
+            // Return true
             return true;
-
         }
 
         /// <summary>
@@ -455,37 +513,46 @@ namespace Analyzer1
         /// <param name="xmlElement">XML element.</param>
         /// <param name="location">Location.</param>
         /// <param name="message">Message.</param>
-        /// <returns></returns>
+        /// <param name="paramCommentNameList">Parameter comment name list.</param>
+        /// <returns>True if there is no error.</returns>
         private static bool CheckParamElement(XmlElementSyntax xmlElement, ref Location location, ref string message, ref List<string> paramCommentNameList)
         {
             // Check tags
             if (!BTAnalyzer.CheckXmlTags(xmlElement, ref location, ref message))
                 return false;
 
+            // Set location
+            location = xmlElement.GetLocation();
+
             // Add param name to the list
             XmlNameAttributeSyntax xmlNameAttribute = xmlElement.StartTag.Attributes.Where(attr => SyntaxKind.XmlNameAttribute == attr.Kind()).FirstOrDefault() as XmlNameAttributeSyntax;
             if (null == xmlNameAttribute)
             {
-                location = xmlElement.GetLocation();
                 message = ErrorCode.MissingNameAttribute;
                 return false;
             }
             paramCommentNameList.Add(xmlNameAttribute.Identifier.ToString());
 
             // Check XML element text
-            IEnumerable<SyntaxToken> xmlTextLiteralTokens = xmlElement.DescendantTokens().Where(token => SyntaxKind.XmlTextLiteralToken == token.Kind());
-            foreach (SyntaxToken xmlTextLiteralToken in xmlTextLiteralTokens)
+            SyntaxNode xmlTextNode = xmlElement.DescendantNodes().Where(node => SyntaxKind.XmlText == node.Kind()).FirstOrDefault();
+            if (null == xmlTextNode)
             {
-                foreach (StringValidator.Validate validate in BTAnalyzer.ParamTextValidators)
+                message = ErrorCode.MissingComment;
+                return false;
+            }
+
+            // Check XML element text
+            string text = xmlTextNode.ToFullString();
+            foreach (StringValidator.Validate validate in BTAnalyzer.ParamTextValidators)
+            {
+                if (!validate(text, ref message))
                 {
-                    if (!validate(xmlTextLiteralToken.Text, ref message))
-                    {
-                        location = xmlTextLiteralToken.GetLocation();
-                        return false;
-                    }
+                    location = xmlTextNode.GetLocation();
+                    return false;
                 }
             }
 
+            // Return true
             return true;
         }
 
@@ -496,35 +563,72 @@ namespace Analyzer1
         /// <param name="xmlElement">The XML element.</param>
         /// <param name="location">Location.</param>
         /// <param name="message">Message.</param>
-        /// <returns></returns>
-        private static bool CheckSummaryElement(XmlElementSyntax xmlElement, ref Location location, ref string message)
+        /// <returns>True if there is no error.</returns>
+        private static bool CheckSummaryElement(SyntaxKind nodeKind, XmlElementSyntax xmlElement, ref Location location, ref string message)
         {
             // Check xml start/end tags
             if (!BTAnalyzer.CheckXmlTags(xmlElement, ref location, ref message))
                 return false;
 
+            // Set location
+            location = xmlElement.GetLocation();
+
             // Check XML element text
-            IEnumerable<SyntaxToken> xmlTextLiteralTokens = xmlElement.DescendantTokens().Where(token => SyntaxKind.XmlTextLiteralToken == token.Kind());
-            foreach (SyntaxToken xmlTextLiteralToken in xmlTextLiteralTokens)
+            SyntaxNode xmlTextNode = xmlElement.DescendantNodes().Where(node => SyntaxKind.XmlText == node.Kind()).FirstOrDefault();
+            if (null == xmlTextNode)
             {
-                location = xmlTextLiteralToken.GetLocation();
+                message = ErrorCode.ErrorsInComment;
+                return false;
+            }
 
-                // Continue if it is just a white space
-                if (" " == xmlTextLiteralToken.Text)
-                    continue;
+            // Check XML element text
+            SyntaxToken[] xmlTextLiteralTokens = xmlTextNode.DescendantTokens().Where(token => SyntaxKind.XmlTextLiteralToken == token.Kind()).ToArray();
+            SyntaxToken[] newlineTokerns = xmlTextNode.DescendantTokens().Where(token => token.Kind() == SyntaxKind.XmlTextLiteralNewLineToken).ToArray();
+            if (xmlTextLiteralTokens.Count() != newlineTokerns.Count())
+            {
+                message = ErrorCode.ErrorsInComment;
+                return false;
+            }
 
+            // Check 
+            for (int i = 0; i < xmlTextLiteralTokens.Length - 1; i++)
+            {
                 // Validate text
-                foreach (StringValidator.Validate validate in BTAnalyzer.SummaryTextValidators)
+                foreach (StringValidator.Validate validate in BTAnalyzer.GetSummaryValidator(nodeKind))
                 {
-                    if (!validate(xmlTextLiteralToken.Text, ref message))
-                    {
-                        location = xmlTextLiteralToken.GetLocation();
+                    if (!validate(xmlTextLiteralTokens[i].Text, ref message))
                         return false;
-                    }
                 }
             }
 
+            // Return true
             return true;
+        }
+
+        /// <summary>
+        /// Gets summary validator.
+        /// </summary>
+        /// <param name="nodeKind">Kind of node.</param>
+        /// <returns>Validator.</returns>
+        private static IEnumerable<StringValidator.Validate> GetSummaryValidator(SyntaxKind nodeKind)
+        {
+            switch (nodeKind)
+            {
+                case SyntaxKind.MethodDeclaration:
+                case SyntaxKind.ConstructorDeclaration:
+                case SyntaxKind.ClassDeclaration:
+                case SyntaxKind.StructDeclaration:
+                case SyntaxKind.InterfaceDeclaration:
+                return BTAnalyzer.SummaryTextValidators;
+                case SyntaxKind.EnumDeclaration:
+                case SyntaxKind.DelegateDeclaration:
+                case SyntaxKind.EventDeclaration:
+                case SyntaxKind.EventFieldDeclaration:
+                case SyntaxKind.FieldDeclaration:
+                return BTAnalyzer.SummaryTextValidatorsWithoutStartWithS;
+                default:
+                return null;
+            }
         }
 
         /// <summary>
@@ -541,7 +645,7 @@ namespace Analyzer1
             string endTag = xmlElement.EndTag.Name.ToString();
             if (string.IsNullOrWhiteSpace(startTag) || string.IsNullOrWhiteSpace(endTag))
             {
-                message = ErrorCode.InvalideXmlComment;
+                message = ErrorCode.ErrorsInComment;
                 location = xmlElement.GetLocation();
                 return false;
             }
@@ -558,17 +662,33 @@ namespace Analyzer1
             return true;
         }
 
+        /// <summary>
+        /// Reports diagnostic.
+        /// </summary>
+        /// <param name="context">Context.</param>
+        /// <param name="location">Location.</param>
+        /// <param name="message">Message.</param>
         private static void ReportDiagnostic(SyntaxNodeAnalysisContext context, Location location, string message)
         {
             var diagnostic = Diagnostic.Create(Rule, location, message);
             context.ReportDiagnostic(diagnostic);
         }
 
+        /// <summary>
+        /// Checks whether xml comment tag is valid.
+        /// </summary>
+        /// <param name="tagName">Name of tag.</param>
+        /// <returns>True if valid.</returns>
         private static bool IsValidXmlCommentTag(string tagName)
         {
             return "summary" == tagName || "param" == tagName || "returns" == tagName;
         }
 
+        /// <summary>
+        /// Checks whether the expression belongs to the equal expression family.
+        /// </summary>
+        /// <param name="kind">Kind of node.</param>
+        /// <returns>True if equal expression.</returns>
         private static bool IsEqualFamilyExpression(SyntaxKind kind)
         {
             return kind == SyntaxKind.EqualsExpression
@@ -577,6 +697,26 @@ namespace Analyzer1
                 || kind == SyntaxKind.LessThanOrEqualExpression
                 || kind == SyntaxKind.GreaterThanExpression
             || kind == SyntaxKind.GreaterThanOrEqualExpression;
+        }
+
+        /// <summary>
+        /// Checks whether a node represents a constant value.
+        /// </summary>
+        /// <param name="syntaxNode">Syntax node.</param>
+        /// <returns>True if constant.</returns>
+        private static bool IsConstant(SyntaxNode syntaxNode)
+        {
+            // Check whether the node itself has a constant value
+            if (SyntaxKind.NumericLiteralExpression == syntaxNode.Kind() || SyntaxKind.StringLiteralExpression == syntaxNode.Kind() || char.IsUpper(syntaxNode.ToString()[0]))
+                return true;
+
+            // Get the first node
+            SyntaxNode firstNode = syntaxNode.ChildNodes().FirstOrDefault();
+            if (null == firstNode)
+                return false;
+
+            // Return true if first node is a predefind type, e.g. int.MaxValue
+            return SyntaxKind.PredefinedType == firstNode.Kind();
         }
     }
 }

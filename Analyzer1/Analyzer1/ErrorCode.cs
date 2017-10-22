@@ -11,7 +11,7 @@
         internal static readonly string MissingComment = "Missing comment";
         internal static readonly string MissingXmlEndTag = "Missing XML start tag";
         internal static readonly string MissingXmlStartTag = "Missing XML end tag";
-        internal static readonly string InvalideXmlComment = "Invalid XML comment";
+        internal static readonly string ErrorsInComment = "Errors in XML comment";
         internal static readonly string InvalidXmlTag = "Invalid XML tag";
         internal static readonly string MissingNameAttribute = "Missing name attribute";
         internal static readonly string ExtraSpace = "Extra Space";
