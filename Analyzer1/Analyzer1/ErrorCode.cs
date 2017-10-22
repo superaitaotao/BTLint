@@ -1,4 +1,4 @@
-﻿namespace Analyzer1
+﻿namespace BTAnalyzer
 {
     public class ErrorCode
     {

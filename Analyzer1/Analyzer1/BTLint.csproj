@@ -34,7 +34,7 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="CodeFixProvider.cs" />
+    <Compile Include="BTCodeFixProvider.cs" />
     <Compile Include="ErrorCode.cs" />
     <Compile Include="BTAnalyzer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

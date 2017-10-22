@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
 
-namespace Analyzer1
+namespace BTAnalyzer
 {
     /// <summary>
     /// Analyses BT formatting issues.
@@ -721,7 +721,7 @@ namespace Analyzer1
         /// <returns>True if valid.</returns>
         private static bool IsValidXmlCommentTag(string tagName)
         {
-            return "summary" == tagName || "param" == tagName || "returns" == tagName;
+            return ("summary" == tagName) || "param" == tagName || "returns" == tagName;
         }
 
         /// <summary>
@@ -729,7 +729,7 @@ namespace Analyzer1
         /// </summary>
         /// <param name="kind">Kind of node.</param>
         /// <returns>True if equal expression.</returns>
-        private static bool IsEqualFamilyExpression(SyntaxKind kind)
+        internal static bool IsEqualFamilyExpression(SyntaxKind kind)
         {
             return kind == SyntaxKind.EqualsExpression
                 || kind == SyntaxKind.NotEqualsExpression

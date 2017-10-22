@@ -4,9 +4,9 @@ using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using TestHelper;
-using Analyzer1;
+using BTAnalyzer;
 
-namespace Analyzer1.Test
+namespace BTAnalyzer.Test
 {
     [TestClass]
     public class UnitTest : CodeFixVerifier
@@ -71,7 +71,7 @@ namespace Analyzer1.Test
 
         protected override CodeFixProvider GetCSharpCodeFixProvider()
         {
-            return new Analyzer1CodeFixProvider();
+            return new BTCodeFixProvider();
         }
 
         protected override DiagnosticAnalyzer GetCSharpDiagnosticAnalyzer()
