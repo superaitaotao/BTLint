@@ -8,6 +8,8 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CodeFixes;
 using Microsoft.CodeAnalysis.CodeActions;
 using Microsoft.CodeAnalysis.Text;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace BTAnalyzer
 {
@@ -60,8 +62,8 @@ namespace BTAnalyzer
             // Register a code action that will invoke the fix
             context.RegisterCodeFix(
                 CodeAction.Create(
-                    title: MAKE_CONSTANT_LEFT,
-                    createChangedDocument: c => MakeConstantLeft(context.Document, equalStatement, c)
+                    title: title,
+                    createChangedDocument: c => func(context.Document, equalStatement, c)
                     ),
                 diagnostic);
 
@@ -94,17 +96,20 @@ namespace BTAnalyzer
 
         private static async Task<Document> FixFullParenthesisError(Document document, SyntaxNode node, CancellationToken cancellationToken)
         {
-            // Get child nodes
-            SyntaxNode[] childNodes = node.ChildNodes().ToArray();
-            if (2 != childNodes.Count())
+            // Get expression node
+            ExpressionSyntax expression = node as ExpressionSyntax;
+            if (null == expression)
                 return null;
+
+            // Create a parenthesized expression
+            ParenthesizedExpressionSyntax parenthesizedExpressionSyntax = SyntaxFactory.ParenthesizedExpression(expression);
 
             // Replace the old local declaration with the new local declaration
             var oldRoot = await document.GetSyntaxRootAsync(cancellationToken);
             SyntaxNode newRoot = null;
             try
             {
-                newRoot = oldRoot.ReplaceNodes(childNodes, (original, _) => original == childNodes[0] ? childNodes[1] : childNodes[0]);
+                newRoot = oldRoot.ReplaceNode(node, parenthesizedExpressionSyntax);
             }
             catch (Exception e)
             {
