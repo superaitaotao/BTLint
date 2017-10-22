@@ -63,8 +63,6 @@ namespace BTAnalyzer
         /// <param name="context">Syntax node analysis context.</param>
         private static void AnalyzeMethodDeclaration(SyntaxNodeAnalysisContext context)
         {
-            if (BTAnalyzer.CSharp != context.Node.Language)
-                return;
             BTAnalyzer.AnalyzeSummaryComments(context);
         }
 
@@ -74,8 +72,6 @@ namespace BTAnalyzer
         /// <param name="context">Syntax node analysis context.</param>
         private static void AnalyzeClassDeclaration(SyntaxNodeAnalysisContext context)
         {
-            if (BTAnalyzer.CSharp != context.Node.Language)
-                return;
             BTAnalyzer.AnalyzeSummaryComments(context);
         }
 
@@ -85,10 +81,6 @@ namespace BTAnalyzer
         /// <param name="context">Code block analysis context.</param>
         private static void AnalyzeInsideMethod(SyntaxNodeAnalysisContext context)
         {
-            // Return early
-            if (BTAnalyzer.CSharp != context.Node.Language)
-                return;
-
             // Analyze comments inside methods
             BTAnalyzer.AnalyzeInsideMethodComment(context);
             BTAnalyzer.AnalyzeBlockEmptyLines(context);
@@ -259,24 +251,31 @@ namespace BTAnalyzer
                 List<Tuple<object, SyntaxKind>> blockObjectList = new List<Tuple<object, SyntaxKind>>();
                 foreach (SyntaxNode node in block.ChildNodes())
                 {
+                    // Check whether the node is a block node
                     bool isBlockNode = node.ChildNodes().Any(nodee => SyntaxKind.Block == nodee.Kind());
 
-                    SyntaxTrivia[] allTrivias = node.DescendantTrivia().Where(trivia => SyntaxKind.SingleLineCommentTrivia == trivia.Kind() ||
-                        SyntaxKind.EndOfLineTrivia == trivia.Kind()).ToArray();
+                    // Get all trivias
+                    SyntaxTrivia[] allTrivias = node.DescendantTrivia().Where(trivia => (SyntaxKind.SingleLineCommentTrivia == trivia.Kind()) ||
+                        (SyntaxKind.EndOfLineTrivia == trivia.Kind())).ToArray();
+
+                    // Add trivias before the node
                     foreach (SyntaxTrivia trivia in allTrivias)
                     {
                         if (trivia.SpanStart < node.SpanStart)
                             blockObjectList.Add(Tuple.Create<object, SyntaxKind>(trivia, trivia.Kind()));
                     }
 
+                    // Add the node
                     blockObjectList.Add(Tuple.Create<object, SyntaxKind>(node, SyntaxKind.None));
 
+                    // Add trivia after the node
                     foreach (SyntaxTrivia trivia in allTrivias)
                     {
-                        if (trivia.SpanStart >= node.SpanStart && !isBlockNode)
+                        if ((trivia.SpanStart >= node.SpanStart) && !isBlockNode)
                             blockObjectList.Add(Tuple.Create<object, SyntaxKind>(trivia, trivia.Kind()));
                     }
 
+                    // Add an additional end of line trivia for block node
                     if (isBlockNode)
                         blockObjectList.Add(Tuple.Create<object, SyntaxKind>(null, SyntaxKind.EndOfLineTrivia));
                 }
@@ -288,7 +287,7 @@ namespace BTAnalyzer
                 {
                     if (SyntaxKind.EndOfLineTrivia != blockObjectList[i].Item2)
                     {
-                        if (i + 1 < blockObjectList.Count() && blockObjectList[i + 1].Item2 == SyntaxKind.EndOfLineTrivia)
+                        if ((i + 1 < blockObjectList.Count()) && (SyntaxKind.EndOfLineTrivia == blockObjectList[i + 1].Item2))
                         {
                             trimmedBlockObjectList.Add(blockObjectList[i]);
                             i++;
@@ -313,21 +312,24 @@ namespace BTAnalyzer
                 // Statement should have comments before
                 for (int i = 0; i < trimmedBlockObjectList.Count(); i++)
                 {
-                    while ((i < trimmedBlockObjectList.Count()) && (trimmedBlockObjectList[i].Item2 != SyntaxKind.None))
+                    // Skip nodes
+                    while ((i < trimmedBlockObjectList.Count()) && (SyntaxKind.None != trimmedBlockObjectList[i].Item2))
                         i++;
 
+                    // Check for missing comment
                     if (i < trimmedBlockObjectList.Count())
                     {
-                        if ((i - 1 < 0 || SyntaxKind.SingleLineCommentTrivia != trimmedBlockObjectList[i - 1].Item2) && !isOnlySyntaxNode)
+                        if (((0 < i - 1) || (SyntaxKind.SingleLineCommentTrivia != trimmedBlockObjectList[i - 1].Item2)) && !isOnlySyntaxNode)
                         {
                             SyntaxNode node = (SyntaxNode)trimmedBlockObjectList[i].Item1;
                             context.ReportDiagnostic(Diagnostic.Create(BTAnalyzer.Rule, Location.Create(node.SyntaxTree, new Microsoft.CodeAnalysis.Text.TextSpan(node.SpanStart, 10)), ErrorCode.MissingComment));
                         }
                     }
-                    while (i < trimmedBlockObjectList.Count() && SyntaxKind.None == trimmedBlockObjectList[i].Item2)
+                    while ((i < trimmedBlockObjectList.Count()) && (SyntaxKind.None == trimmedBlockObjectList[i].Item2))
                         i++;
 
-                    if (i < trimmedBlockObjectList.Count() && SyntaxKind.EndOfLineTrivia != trimmedBlockObjectList[i].Item2)
+                    // Check for missing empty line
+                    if ((i < trimmedBlockObjectList.Count()) && (SyntaxKind.EndOfLineTrivia != trimmedBlockObjectList[i].Item2))
                         context.ReportDiagnostic(Diagnostic.Create(BTAnalyzer.Rule, ((SyntaxTrivia)trimmedBlockObjectList[i].Item1).GetLocation(), ErrorCode.MissingEmptyLine));
                 }
 
@@ -463,6 +465,7 @@ namespace BTAnalyzer
             string message = string.Empty;
             foreach (XmlElementSyntax xmlElement in xmlElements)
             {
+                // Swtich
                 switch (xmlElement.StartTag.Name.ToString())
                 {
                     case "summary":
@@ -600,6 +603,7 @@ namespace BTAnalyzer
         /// <summary>
         /// Checks summary element.
         /// </summary>
+        /// <param name="nodeKind">Kind of node.</param>
         /// <param name="xmlElement">The XML element.</param>
         /// <param name="location">Location.</param>
         /// <param name="message">Message.</param>
@@ -731,12 +735,12 @@ namespace BTAnalyzer
         /// <returns>True if equal expression.</returns>
         internal static bool IsEqualFamilyExpression(SyntaxKind kind)
         {
-            return kind == SyntaxKind.EqualsExpression
-                || kind == SyntaxKind.NotEqualsExpression
-                || kind == SyntaxKind.LessThanExpression
-                || kind == SyntaxKind.LessThanOrEqualExpression
-                || kind == SyntaxKind.GreaterThanExpression
-            || kind == SyntaxKind.GreaterThanOrEqualExpression;
+            return (SyntaxKind.EqualsExpression == kind)
+                || (SyntaxKind.NotEqualsExpression == kind)
+                || (SyntaxKind.LessThanExpression == kind)
+                || (SyntaxKind.LessThanOrEqualExpression == kind)
+                || (SyntaxKind.GreaterThanExpression == kind)
+                || (SyntaxKind.GreaterThanOrEqualExpression == kind);
         }
 
         /// <summary>
@@ -746,9 +750,7 @@ namespace BTAnalyzer
         /// <returns>True if logical expression.</returns>
         private static bool IsLogicalExpression(SyntaxKind kind)
         {
-            return kind == SyntaxKind.LogicalAndExpression
-                || kind == SyntaxKind.LogicalNotExpression
-                || kind == SyntaxKind.LogicalOrExpression;
+            return (SyntaxKind.LogicalAndExpression == kind) || (SyntaxKind.LogicalNotExpression == kind) || (SyntaxKind.LogicalOrExpression == kind);
         }
 
         /// <summary>
@@ -758,12 +760,12 @@ namespace BTAnalyzer
         /// <returns>True if block statements.</returns>
         private static bool IsBlockStatement(SyntaxKind kind)
         {
-            return kind == SyntaxKind.DoStatement
-                || kind == SyntaxKind.ForEachStatement
-                || kind == SyntaxKind.ForStatement
-                || kind == SyntaxKind.IfStatement
-                || kind == SyntaxKind.WhileStatement
-                || kind == SyntaxKind.UsingStatement;
+            return (SyntaxKind.DoStatement== kind) 
+                || (SyntaxKind.ForEachStatement== kind) 
+                || (SyntaxKind.ForStatement== kind) 
+                || (SyntaxKind.IfStatement== kind) 
+                || (SyntaxKind.WhileStatement== kind) 
+                || (SyntaxKind.UsingStatement == kind);
         }
 
         /// <summary>
@@ -774,7 +776,7 @@ namespace BTAnalyzer
         private static bool IsConstant(SyntaxNode syntaxNode)
         {
             // Check whether the node itself has a constant value
-            if (SyntaxKind.NumericLiteralExpression == syntaxNode.Kind() || SyntaxKind.StringLiteralExpression == syntaxNode.Kind() || char.IsUpper(syntaxNode.ToString()[0]))
+            if ((SyntaxKind.NumericLiteralExpression == syntaxNode.Kind()) || (SyntaxKind.StringLiteralExpression == syntaxNode.Kind()) || char.IsUpper(syntaxNode.ToString()[0]))
                 return true;
 
             // Get the first node
