@@ -3,11 +3,11 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.26730.16
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BTLint", "Analyzer1\Analyzer1\BTLint.csproj", "{E5653F8E-D84F-4C86-ADC4-14D5B5CF1568}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BTLint", "BTLint\BTLint\BTLint.csproj", "{E5653F8E-D84F-4C86-ADC4-14D5B5CF1568}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BTLint.Test", "Analyzer1\Analyzer1.Test\BTLint.Test.csproj", "{344B74A5-50CF-4857-B491-EF1399EC082B}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BTLint.Test", "BTLint\BTLint.Test\BTLint.Test.csproj", "{344B74A5-50CF-4857-B491-EF1399EC082B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BTLint.Vsix", "Analyzer1\Analyzer1.Vsix\BTLint.Vsix.csproj", "{342D9C2D-3C94-44FA-A22F-841858474C7B}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BTLint.Vsix", "BTLint\BTLint.Vsix\BTLint.Vsix.csproj", "{342D9C2D-3C94-44FA-A22F-841858474C7B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

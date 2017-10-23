@@ -103,7 +103,7 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Analyzer1\BTLint.csproj">
+    <ProjectReference Include="..\BTLint\BTLint.csproj">
       <Project>{E5653F8E-D84F-4C86-ADC4-14D5B5CF1568}</Project>
       <Name>BTLint</Name>
     </ProjectReference>
