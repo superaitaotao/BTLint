@@ -2,7 +2,7 @@
 # BTLint is here to save your precious time :)
 
 ## BTLint: A simple tool that highlights some formatting issues in C# code.
-It only covers those issues that are not handled by default formatting tools in Visual Studio.
+BTLint only covers those issues that are not handled by default formatting tools (Ctrl+K, Ctrl+D) in Visual Studio.
 BTLint also provides quick fixes to some formatting issues found. (FIX)
 
 List of formatting issues covered:
