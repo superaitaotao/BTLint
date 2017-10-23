@@ -192,7 +192,7 @@ namespace BTAnalyzer
                 {
                     continue;
                 }
-                IEnumerable<SyntaxNode> expressionNodes = block.ChildNodes().Where(nodee => SyntaxKind.ExpressionStatement == nodee.Kind());
+                IEnumerable<SyntaxNode> expressionNodes = block.ChildNodes().Where(nodee => BTAnalyzer.IsSingleLineStatement(nodee));
                 if ((1 == expressionNodes.Count()) && (1 == block.ChildNodes().Count()))
                     context.ReportDiagnostic(Diagnostic.Create(BTAnalyzer.Rule, node.GetLocation(), ErrorCode.UnnecessaryBlock));
             }
@@ -763,6 +763,19 @@ namespace BTAnalyzer
                 || (SyntaxKind.IfStatement == kind)
                 || (SyntaxKind.WhileStatement == kind)
                 || (SyntaxKind.UsingStatement == kind);
+        }
+
+        /// <summary>
+        /// Checks whether the statement is a single line statement.
+        /// Single line statement does not have comment.
+        /// </summary>
+        /// <param name="node">Node</param>
+        /// <returns>True if single line.</returns>
+        private static bool IsSingleLineStatement(SyntaxNode node)
+        {
+            SyntaxKind kind = node.Kind();
+            return ((SyntaxKind.ExpressionStatement == kind) || (SyntaxKind.ReturnStatement == kind) || (SyntaxKind.YieldReturnStatement == kind) || (SyntaxKind.LockStatement == kind))
+                && node.DescendantTrivia().All(trivia => SyntaxKind.SingleLineCommentTrivia != trivia.Kind());
         }
 
         /// <summary>

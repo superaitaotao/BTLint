@@ -18,6 +18,7 @@ namespace BTAnalyzer
     {
         private const string MAKE_CONSTANT_LEFT = "Make constant left";
         private const string ADD_FULL_PARENTHESIS = "Add full parenthesis";
+        private const string REMOVE_SINGLE_LINE_BRACKET = "Remove single line bracket";
 
         public sealed override ImmutableArray<string> FixableDiagnosticIds
         {
@@ -38,6 +39,10 @@ namespace BTAnalyzer
 
             // Fix missing bracket error
             if (await RegisterErrorFix(context, BTCodeFixProvider.ADD_FULL_PARENTHESIS, ErrorCode.MissingFullParenthization, BTCodeFixProvider.FixFullParenthesisError))
+                return;
+
+            // Fix single line parenthesis
+            if (await RegisterErrorFix(context, BTCodeFixProvider.REMOVE_SINGLE_LINE_BRACKET, ErrorCode.UnnecessaryBlock, BTCodeFixProvider.RemoveUnnecessaryBlock))
                 return;
         }
 
@@ -95,6 +100,33 @@ namespace BTAnalyzer
         }
 
         private static async Task<Document> FixFullParenthesisError(Document document, SyntaxNode node, CancellationToken cancellationToken)
+        {
+            // Get expression node
+            ExpressionSyntax expression = node as ExpressionSyntax;
+            if (null == expression)
+                return null;
+
+            // Create a parenthesized expression
+            ParenthesizedExpressionSyntax parenthesizedExpressionSyntax = SyntaxFactory.ParenthesizedExpression(expression);
+
+            // Replace the old local declaration with the new local declaration
+            var oldRoot = await document.GetSyntaxRootAsync(cancellationToken);
+            SyntaxNode newRoot = null;
+            try
+            {
+                newRoot = oldRoot.ReplaceNode(node, parenthesizedExpressionSyntax);
+            }
+            catch (Exception e)
+            {
+
+            }
+
+            // Return document with transformed tree
+            return document.WithSyntaxRoot(newRoot);
+        }
+
+
+        private static async Task<Document> RemoveUnnecessaryBlock(Document document, SyntaxNode node, CancellationToken cancellationToken)
         {
             // Get expression node
             ExpressionSyntax expression = node as ExpressionSyntax;
