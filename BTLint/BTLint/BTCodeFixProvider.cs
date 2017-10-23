@@ -62,13 +62,13 @@ namespace BTAnalyzer
             TextSpan diagnosticSpan = diagnostic.Location.SourceSpan;
 
             // Find the type declaration identified by the diagnostic
-            SyntaxNode equalStatement = root.FindNode(diagnosticSpan);
+            SyntaxNode node = root.FindNode(diagnosticSpan);
 
             // Register a code action that will invoke the fix
             context.RegisterCodeFix(
                 CodeAction.Create(
                     title: title,
-                    createChangedDocument: c => func(context.Document, equalStatement, c)
+                    createChangedDocument: c => func(context.Document, node, c)
                     ),
                 diagnostic);
 
@@ -129,19 +129,20 @@ namespace BTAnalyzer
         private static async Task<Document> RemoveUnnecessaryBlock(Document document, SyntaxNode node, CancellationToken cancellationToken)
         {
             // Get expression node
-            ExpressionSyntax expression = node as ExpressionSyntax;
-            if (null == expression)
+            BlockSyntax block = node.ChildNodes().Where(nodee => SyntaxKind.Block == nodee.Kind()).OfType<BlockSyntax>().FirstOrDefault();
+            if (null == block)
                 return null;
 
-            // Create a parenthesized expression
-            ParenthesizedExpressionSyntax parenthesizedExpressionSyntax = SyntaxFactory.ParenthesizedExpression(expression);
-
             // Replace the old local declaration with the new local declaration
+            SyntaxNode newNode = block.ChildNodes().FirstOrDefault();
+            if (null == newNode)
+                return null;
+            
             var oldRoot = await document.GetSyntaxRootAsync(cancellationToken);
-            SyntaxNode newRoot = null;
+            SyntaxNode newRoot  = null;
             try
             {
-                newRoot = oldRoot.ReplaceNode(node, parenthesizedExpressionSyntax);
+                newRoot = oldRoot.ReplaceNode(block, newNode);
             }
             catch (Exception e)
             {
