@@ -773,7 +773,8 @@ namespace BTAnalyzer
         private static bool IsConstant(SyntaxNode syntaxNode)
         {
             // Check whether the node itself has a constant value
-            if ((SyntaxKind.NumericLiteralExpression == syntaxNode.Kind()) || (SyntaxKind.StringLiteralExpression == syntaxNode.Kind()) || char.IsUpper(syntaxNode.ToString()[0]))
+            if ((SyntaxKind.NumericLiteralExpression == syntaxNode.Kind()) || (SyntaxKind.StringLiteralExpression == syntaxNode.Kind()) || char.IsUpper(syntaxNode.ToString()[0])
+                || (SyntaxKind.CharacterLiteralExpression == syntaxNode.Kind()) || (SyntaxKind.NullLiteralExpression == syntaxNode.Kind()))
                 return true;
 
             // Get the first node
