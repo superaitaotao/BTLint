@@ -6,6 +6,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
+using Microsoft.CodeAnalysis.Text;
 
 namespace BTAnalyzer
 {
@@ -156,7 +157,7 @@ namespace BTAnalyzer
         {
             // Get method declaration node
             MethodDeclarationSyntax methodDeclaration = context.Node as MethodDeclarationSyntax;
-            if (methodDeclaration == null)
+            if (null == methodDeclaration)
                 return;
 
             // Get all equal family expressions
@@ -188,10 +189,8 @@ namespace BTAnalyzer
             foreach (SyntaxNode node in blockStatements)
             {
                 BlockSyntax block = node.ChildNodes().Where(nodee => SyntaxKind.Block == nodee.Kind()).OfType<BlockSyntax>().FirstOrDefault();
-                if (block == null)
-                {
+                if (null == block)
                     continue;
-                }
                 IEnumerable<SyntaxNode> expressionNodes = block.ChildNodes().Where(nodee => BTAnalyzer.IsSingleLineStatement(nodee));
                 if ((1 == expressionNodes.Count()) && (1 == block.ChildNodes().Count()))
                     context.ReportDiagnostic(Diagnostic.Create(BTAnalyzer.Rule, node.GetLocation(), ErrorCode.UnnecessaryBlock));
@@ -206,7 +205,7 @@ namespace BTAnalyzer
         {
             // Get the block
             MethodDeclarationSyntax methodDeclarationSyntax = context.Node as MethodDeclarationSyntax;
-            if (methodDeclarationSyntax == null)
+            if (null == methodDeclarationSyntax)
                 return;
 
             // Get all single line comment trivia
@@ -217,16 +216,17 @@ namespace BTAnalyzer
             string message = string.Empty;
             foreach (SyntaxTrivia singleLineComment in singleLineCommentTrivias)
             {
+                Location location = Location.Create(singleLineComment.SyntaxTree, new TextSpan(singleLineComment.SpanStart, 10));
                 if (!StringValidator.StartWithTwoSlashes(singleLineComment.ToString(), ref message))
                 {
-                    context.ReportDiagnostic(Diagnostic.Create(BTAnalyzer.Rule, singleLineComment.GetLocation(), message));
+                    context.ReportDiagnostic(Diagnostic.Create(BTAnalyzer.Rule, location, message));
                     continue;
                 }
                 string trimmedText = singleLineComment.ToString().Substring(3);
                 foreach (StringValidator.Validate validate in BTAnalyzer.NormalCommentValidator)
                 {
                     if (!validate(trimmedText, ref message))
-                        context.ReportDiagnostic(Diagnostic.Create(BTAnalyzer.Rule, singleLineComment.GetLocation(), message));
+                        context.ReportDiagnostic(Diagnostic.Create(BTAnalyzer.Rule, location, message));
                 }
             }
         }
@@ -319,7 +319,7 @@ namespace BTAnalyzer
                         if ((0 < i - 1) && (SyntaxKind.SingleLineCommentTrivia != trimmedBlockObjectList[i - 1].Item2) && !isOnlySyntaxNode)
                         {
                             SyntaxNode node = (SyntaxNode)trimmedBlockObjectList[i].Item1;
-                            context.ReportDiagnostic(Diagnostic.Create(BTAnalyzer.Rule, Location.Create(node.SyntaxTree, new Microsoft.CodeAnalysis.Text.TextSpan(node.SpanStart, 10)), ErrorCode.MissingComment));
+                            context.ReportDiagnostic(Diagnostic.Create(BTAnalyzer.Rule, Location.Create(node.SyntaxTree, new TextSpan(node.SpanStart, 10)), ErrorCode.MissingComment));
                         }
                     }
                     while ((i < trimmedBlockObjectList.Count()) && (SyntaxKind.None == trimmedBlockObjectList[i].Item2))
@@ -722,7 +722,7 @@ namespace BTAnalyzer
         /// <returns>True if valid.</returns>
         private static bool IsValidXmlCommentTag(string tagName)
         {
-            return ("summary" == tagName) || "param" == tagName || "returns" == tagName;
+            return ("summary" == tagName) || ("param" == tagName) || ("returns" == tagName);
         }
 
         /// <summary>
@@ -769,12 +769,12 @@ namespace BTAnalyzer
         /// Checks whether the statement is a single line statement.
         /// Single line statement does not have comment.
         /// </summary>
-        /// <param name="node">Node</param>
+        /// <param name="node">Node.</param>
         /// <returns>True if single line.</returns>
         private static bool IsSingleLineStatement(SyntaxNode node)
         {
             string nodeString = node.ToFullString();
-            return !nodeString.TrimEnd('\r','\n').Contains(Environment.NewLine);
+            return !nodeString.TrimEnd('\r', '\n').Contains(Environment.NewLine);
         }
 
         /// <summary>
