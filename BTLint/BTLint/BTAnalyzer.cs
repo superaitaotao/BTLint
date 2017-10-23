@@ -522,7 +522,7 @@ namespace BTAnalyzer
             returnCount++;
 
             // Set location
-            location = xmlElement.GetLocation();
+            location = xmlElement.StartTag.GetLocation();
 
             // Check XML element text
             SyntaxNode xmlTextNode = xmlElement.DescendantNodes().Where(node => SyntaxKind.XmlText == node.Kind()).FirstOrDefault();
@@ -562,7 +562,7 @@ namespace BTAnalyzer
                 return false;
 
             // Set location
-            location = xmlElement.GetLocation();
+            location = xmlElement.StartTag.GetLocation();
 
             // Add param name to the list
             XmlNameAttributeSyntax xmlNameAttribute = xmlElement.StartTag.Attributes.Where(attr => SyntaxKind.XmlNameAttribute == attr.Kind()).FirstOrDefault() as XmlNameAttributeSyntax;
@@ -612,7 +612,7 @@ namespace BTAnalyzer
                 return false;
 
             // Set location
-            location = xmlElement.GetLocation();
+            location = xmlElement.StartTag.GetLocation();
 
             // Check XML element text
             SyntaxNode xmlTextNode = xmlElement.DescendantNodes().Where(node => SyntaxKind.XmlText == node.Kind()).FirstOrDefault();
