@@ -1,8 +1,7 @@
 # Spending too much time on formatting issues on Code Review?
 # BTLint is here to save your precious time :)
 
-# BTLint
-## A simple tool that highlights some formatting issues in C# code.
+## BTLint: A simple tool that highlights some formatting issues in C# code.
 It only covers those issues that are not handled by default formatting tools in Visual Studio.
 BTLint also provides quick fixes to some formatting issues found. (FIX)
 
