@@ -773,9 +773,8 @@ namespace BTAnalyzer
         /// <returns>True if single line.</returns>
         private static bool IsSingleLineStatement(SyntaxNode node)
         {
-            SyntaxKind kind = node.Kind();
-            return ((SyntaxKind.ExpressionStatement == kind) || (SyntaxKind.ReturnStatement == kind) || (SyntaxKind.YieldReturnStatement == kind) || (SyntaxKind.LockStatement == kind))
-                && node.DescendantTrivia().All(trivia => SyntaxKind.SingleLineCommentTrivia != trivia.Kind());
+            string nodeString = node.ToFullString();
+            return !nodeString.TrimEnd('\r','\n').Contains(Environment.NewLine);
         }
 
         /// <summary>
