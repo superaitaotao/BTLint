@@ -10,6 +10,7 @@ using Microsoft.CodeAnalysis.CodeActions;
 using Microsoft.CodeAnalysis.Text;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using System.Collections.Generic;
 
 namespace BTAnalyzer
 {
@@ -82,13 +83,21 @@ namespace BTAnalyzer
             SyntaxNode[] childNodes = node.ChildNodes().ToArray();
             if (2 != childNodes.Count())
                 return null;
-
             // Replace the old local declaration with the new local declaration
             var oldRoot = await document.GetSyntaxRootAsync(cancellationToken);
             SyntaxNode newRoot = null;
+            SyntaxNode newNode = null;
             try
             {
-                newRoot = oldRoot.ReplaceNodes(childNodes, (original, _) => original == childNodes[0] ? childNodes[1] : childNodes[0]);
+                newNode = node.ReplaceNodes(childNodes, (original, _) => original == childNodes[0] ? childNodes[1] : childNodes[0]);
+                SyntaxToken token = newNode.ChildTokens().FirstOrDefault();
+                if (null == token)
+                    return null;
+
+                if (BTCodeFixProvider.GreaterDictionary.ContainsKey(token.Kind()))
+                    newNode = newNode.ReplaceToken(token, SyntaxFactory.Token(BTCodeFixProvider.GreaterDictionary[token.Kind()]));
+
+                newRoot = oldRoot.ReplaceNode(node, newNode);
             }
             catch (Exception e)
             {
@@ -137,9 +146,9 @@ namespace BTAnalyzer
             SyntaxNode newNode = block.ChildNodes().FirstOrDefault();
             if (null == newNode)
                 return null;
-            
+
             var oldRoot = await document.GetSyntaxRootAsync(cancellationToken);
-            SyntaxNode newRoot  = null;
+            SyntaxNode newRoot = null;
             try
             {
                 newRoot = oldRoot.ReplaceNode(block, newNode);
@@ -152,5 +161,13 @@ namespace BTAnalyzer
             // Return document with transformed tree
             return document.WithSyntaxRoot(newRoot);
         }
+
+        private static readonly Dictionary<SyntaxKind, SyntaxKind> GreaterDictionary = new Dictionary<SyntaxKind, SyntaxKind>
+        {
+            { SyntaxKind.GreaterThanEqualsToken, SyntaxKind.LessThanEqualsToken },
+            { SyntaxKind.LessThanEqualsToken, SyntaxKind.GreaterThanEqualsToken },
+            { SyntaxKind.GreaterThanToken, SyntaxKind.LessThanToken },
+            { SyntaxKind.LessThanToken, SyntaxKind.GreaterThanToken }
+        };
     }
 }
