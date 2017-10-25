@@ -524,21 +524,12 @@ namespace BTAnalyzer
             // Set location
             location = xmlElement.StartTag.GetLocation();
 
-            // Check XML element text
-            SyntaxNode xmlTextNode = xmlElement.DescendantNodes().Where(node => SyntaxKind.XmlText == node.Kind()).FirstOrDefault();
-            if (null == xmlTextNode)
-            {
-                message = ErrorCode.MissingComment;
-                return false;
-            }
-
             // Return text
-            string text = xmlTextNode.ToFullString();
+            string text = xmlElement.ToFullString().Replace(xmlElement.StartTag.ToString(), String.Empty).Replace(xmlElement.EndTag.ToString(), String.Empty);
             foreach (StringValidator.Validate validate in BTAnalyzer.ReturnTextValidators)
             {
                 if (!validate(text, ref message))
                 {
-                    location = xmlTextNode.GetLocation();
                     return false;
                 }
             }
@@ -573,21 +564,13 @@ namespace BTAnalyzer
             }
             paramCommentNameList.Add(xmlNameAttribute.Identifier.ToString());
 
+            // Remove <see cref .. /> elements, remove start and end tags.
             // Check XML element text
-            SyntaxNode xmlTextNode = xmlElement.DescendantNodes().Where(node => SyntaxKind.XmlText == node.Kind()).FirstOrDefault();
-            if (null == xmlTextNode)
-            {
-                message = ErrorCode.MissingComment;
-                return false;
-            }
-
-            // Check XML element text
-            string text = xmlTextNode.ToFullString();
+            string text = xmlElement.ToFullString().Replace(xmlElement.StartTag.ToString(), String.Empty).Replace(xmlElement.EndTag.ToString(), String.Empty);
             foreach (StringValidator.Validate validate in BTAnalyzer.ParamTextValidators)
             {
                 if (!validate(text, ref message))
                 {
-                    location = xmlTextNode.GetLocation();
                     return false;
                 }
             }
