@@ -85,17 +85,20 @@ namespace BTAnalyzer
                 return null;
             // Replace the old local declaration with the new local declaration
             var oldRoot = await document.GetSyntaxRootAsync(cancellationToken);
+            SyntaxNode newNode0 = childNodes[0].ReplaceToken(childNodes[0].GetFirstToken(), SyntaxFactory.ParseToken(childNodes[0].GetFirstToken().ToString().Trim()));
+            SyntaxNode newNode1 = childNodes[1].ReplaceToken(childNodes[1].GetFirstToken(), SyntaxFactory.ParseToken(childNodes[1].GetFirstToken().ToString() + " "));
+
             SyntaxNode newRoot = null;
             SyntaxNode newNode = null;
             try
             {
-                newNode = node.ReplaceNodes(childNodes, (original, _) => original == childNodes[0] ? childNodes[1] : childNodes[0]);
+                newNode = node.ReplaceNodes(childNodes, (original, _) => original == childNodes[0] ? newNode1 : newNode0);
                 SyntaxToken token = newNode.ChildTokens().FirstOrDefault();
                 if (null == token)
                     return null;
 
                 if (BTCodeFixProvider.GreaterDictionary.ContainsKey(token.Kind()))
-                    newNode = newNode.ReplaceToken(token, SyntaxFactory.Token(BTCodeFixProvider.GreaterDictionary[token.Kind()]));
+                    newNode = newNode.ReplaceToken(token, SyntaxFactory.ParseToken(SyntaxFactory.Token(BTCodeFixProvider.GreaterDictionary[token.Kind()]).ToString() + " "));
 
                 newRoot = oldRoot.ReplaceNode(node, newNode);
             }
