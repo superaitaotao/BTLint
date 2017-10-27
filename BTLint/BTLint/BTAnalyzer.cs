@@ -7,6 +7,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Text;
+using static BTAnalyzer.StringValidator;
 
 namespace BTAnalyzer
 {
@@ -216,17 +217,18 @@ namespace BTAnalyzer
             string message = string.Empty;
             foreach (SyntaxTrivia singleLineComment in singleLineCommentTrivias)
             {
-                Location location = Location.Create(singleLineComment.SyntaxTree, new TextSpan(singleLineComment.SpanStart, 10));
-                if (!StringValidator.StartWithTwoSlashes(singleLineComment.ToString(), ref message))
+                Location location = singleLineComment.GetLocation();
+                Position position = Position.Origin;
+                if (!StringValidator.StartWithTwoSlashes(singleLineComment.ToString(), ref message, ref position))
                 {
-                    context.ReportDiagnostic(Diagnostic.Create(BTAnalyzer.Rule, location, message));
+                    context.ReportDiagnostic(Diagnostic.Create(BTAnalyzer.Rule, BTAnalyzer.GetLocation(singleLineComment.SyntaxTree, location, position), message));
                     continue;
                 }
                 string trimmedText = singleLineComment.ToString().Substring(3);
                 foreach (StringValidator.Validate validate in BTAnalyzer.NormalCommentValidator)
                 {
-                    if (!validate(trimmedText, ref message))
-                        context.ReportDiagnostic(Diagnostic.Create(BTAnalyzer.Rule, location, message));
+                    if (!validate(trimmedText, ref message, ref position))
+                        context.ReportDiagnostic(Diagnostic.Create(BTAnalyzer.Rule, BTAnalyzer.GetLocation(singleLineComment.SyntaxTree, location, position, 3), message));
                 }
             }
         }
@@ -523,13 +525,15 @@ namespace BTAnalyzer
 
             // Set location
             location = xmlElement.StartTag.GetLocation();
+            Position position = Position.Origin;
 
             // Return text
             string text = xmlElement.ToFullString().Replace(xmlElement.StartTag.ToString(), String.Empty).Replace(xmlElement.EndTag.ToString(), String.Empty);
             foreach (StringValidator.Validate validate in BTAnalyzer.ReturnTextValidators)
             {
-                if (!validate(text, ref message))
+                if (!validate(text, ref message, ref position))
                 {
+                    location = BTAnalyzer.GetLocation(xmlElement.SyntaxTree, location, position, xmlElement.StartTag.ToString().Length);
                     return false;
                 }
             }
@@ -554,6 +558,7 @@ namespace BTAnalyzer
 
             // Set location
             location = xmlElement.StartTag.GetLocation();
+            Position position = Position.Origin;
 
             // Add param name to the list
             XmlNameAttributeSyntax xmlNameAttribute = xmlElement.StartTag.Attributes.Where(attr => SyntaxKind.XmlNameAttribute == attr.Kind()).FirstOrDefault() as XmlNameAttributeSyntax;
@@ -569,8 +574,9 @@ namespace BTAnalyzer
             string text = xmlElement.ToFullString().Replace(xmlElement.StartTag.ToString(), String.Empty).Replace(xmlElement.EndTag.ToString(), String.Empty);
             foreach (StringValidator.Validate validate in BTAnalyzer.ParamTextValidators)
             {
-                if (!validate(text, ref message))
+                if (!validate(text, ref message, ref position))
                 {
+                    location = BTAnalyzer.GetLocation(xmlElement.SyntaxTree, location, position, xmlElement.StartTag.ToString().Length);
                     return false;
                 }
             }
@@ -596,6 +602,7 @@ namespace BTAnalyzer
 
             // Set location
             location = xmlElement.StartTag.GetLocation();
+            Position position = Position.Origin;
 
             // Check XML element text
             SyntaxNode xmlTextNode = xmlElement.DescendantNodes().Where(node => SyntaxKind.XmlText == node.Kind()).FirstOrDefault();
@@ -620,7 +627,8 @@ namespace BTAnalyzer
                 // Validate text
                 foreach (StringValidator.Validate validate in BTAnalyzer.GetSummaryValidator(nodeKind))
                 {
-                    if (!validate(xmlTextLiteralTokens[i].Text, ref message))
+                    if (!validate(xmlTextLiteralTokens[i].Text, ref message, ref position))
+                        location = BTAnalyzer.GetLocation(xmlElement.SyntaxTree, xmlTextLiteralTokens[i].GetLocation(), position);
                         return false;
                 }
             }
@@ -779,6 +787,11 @@ namespace BTAnalyzer
 
             // Return true if first node is a predefind type, e.g. int.MaxValue
             return SyntaxKind.PredefinedType == firstNode.Kind();
+        }
+
+        private static Location GetLocation(SyntaxTree syntaxTree, Location location, Position position, int offset = 0)
+        {
+            return Location.Create(syntaxTree, new TextSpan(location.SourceSpan.Start + position.Start + offset, position.Len));
         }
     }
 }
