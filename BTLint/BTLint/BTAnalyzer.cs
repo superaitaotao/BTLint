@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.IO;
 using System.Linq;
 using System.Text;
 using Microsoft.CodeAnalysis;
@@ -57,6 +58,7 @@ namespace BTAnalyzer
                 SyntaxKind.EventDeclaration, SyntaxKind.EventFieldDeclaration);
 
             // Analyze inside method items
+            context.RegisterSyntaxNodeAction(AnalyzeBlockEmptyLines, SyntaxKind.ClassDeclaration);
             context.RegisterSyntaxNodeAction(AnalyzeInsideMethod, SyntaxKind.MethodDeclaration);
         }
 
@@ -66,6 +68,8 @@ namespace BTAnalyzer
         /// <param name="context">Syntax node analysis context.</param>
         private static void AnalyzeMethodDeclaration(SyntaxNodeAnalysisContext context)
         {
+            if (BTAnalyzer.IsGenerated(context))
+                return;
             BTAnalyzer.AnalyzeSummaryComments(context);
         }
 
@@ -75,6 +79,8 @@ namespace BTAnalyzer
         /// <param name="context">Syntax node analysis context.</param>
         private static void AnalyzeClassDeclaration(SyntaxNodeAnalysisContext context)
         {
+            if (BTAnalyzer.IsGenerated(context))
+                return;
             BTAnalyzer.AnalyzeSummaryComments(context);
         }
 
@@ -84,9 +90,11 @@ namespace BTAnalyzer
         /// <param name="context">Code block analysis context.</param>
         private static void AnalyzeInsideMethod(SyntaxNodeAnalysisContext context)
         {
+            if (BTAnalyzer.IsGenerated(context))
+                return;
+
             // Analyze comments inside methods
             BTAnalyzer.AnalyzeInsideMethodComment(context);
-            BTAnalyzer.AnalyzeBlockEmptyLines(context);
             BTAnalyzer.AnalyzeLogicalExpressions(context);
         }
 
@@ -238,9 +246,44 @@ namespace BTAnalyzer
         /// <param name="context">Context.</param>
         private static void AnalyzeBlockEmptyLines(SyntaxNodeAnalysisContext context)
         {
+            // Return early
+            if (BTAnalyzer.IsGenerated(context))
+                return;
+
             // Get the block
-            MethodDeclarationSyntax methodDeclarationSyntax = context.Node as MethodDeclarationSyntax;
-            IEnumerable<BlockSyntax> blocks = methodDeclarationSyntax.DescendantNodes().Where(node => SyntaxKind.Block == node.Kind()).OfType<BlockSyntax>();
+            ClassDeclarationSyntax classDeclarationSyntax = context.Node as ClassDeclarationSyntax;
+
+            // Check method spacing
+            MethodDeclarationSyntax[] methods = classDeclarationSyntax.ChildNodes().Where(node => SyntaxKind.MethodDeclaration == node.Kind()).OfType<MethodDeclarationSyntax>().ToArray();
+            Location location = default(Location);
+            for (int i = 0; i < methods.Length; i++)
+            {
+                MethodDeclarationSyntax method = methods[i];
+                IEnumerable<SyntaxTrivia> trivias = method.DescendantTrivia();
+                int count = 0;
+                int j = 0;
+                foreach (SyntaxTrivia trivia in trivias)
+                {
+                    if (j == 0)
+                    {
+                        location = BTAnalyzer.GetLocation(trivia.SyntaxTree, trivia.GetLocation(), Position.Origin);
+                        j++;
+                    }
+
+                    if (SyntaxKind.EndOfLineTrivia == trivia.Kind())
+                        count++;
+                    else if (!(SyntaxKind.WhitespaceTrivia == trivia.Kind()))
+                        break;
+                }
+                if ((i == 0 && count > 0) || (i > 0 && count > 1))
+                    context.ReportDiagnostic(Diagnostic.Create(BTAnalyzer.Rule, location, ErrorCode.ExtraLine));
+                if (i > 0 && count < 1)
+                    context.ReportDiagnostic(Diagnostic.Create(BTAnalyzer.Rule, location, ErrorCode.MissingEmptyLine));
+            }
+
+
+            // Check blocks
+            IEnumerable<BlockSyntax> blocks = classDeclarationSyntax.DescendantNodes().Where(node => SyntaxKind.Block == node.Kind()).OfType<BlockSyntax>();
 
             // Iterate through each block
             foreach (BlockSyntax block in blocks)
@@ -299,7 +342,10 @@ namespace BTAnalyzer
                 for (int i = 0; i < trimmedBlockObjectList.Count(); i++)
                 {
                     if (SyntaxKind.EndOfLineTrivia == blockObjectList[i].Item2)
-                        context.ReportDiagnostic(Diagnostic.Create(BTAnalyzer.Rule, ((SyntaxTrivia)trimmedBlockObjectList[i].Item1).GetLocation(), ErrorCode.ExtraLine));
+                    {
+                        SyntaxTrivia trivia = (SyntaxTrivia)trimmedBlockObjectList[i].Item1;
+                        context.ReportDiagnostic(Diagnostic.Create(BTAnalyzer.Rule, trivia.GetLocation(), ErrorCode.ExtraLine));
+                    }
                     else
                         break;
                 }
@@ -838,6 +884,17 @@ namespace BTAnalyzer
         private static Location GetLocation(SyntaxTree syntaxTree, Location location, Position position, int offset = 0)
         {
             return Location.Create(syntaxTree, new TextSpan(location.SourceSpan.Start + position.Start + offset, position.Len));
+        }
+
+        /// <summary>
+        /// Checks whether a file is a generated file.
+        /// </summary>
+        /// <param name="context">Context.</param>
+        /// <returns>True if generated.</returns>
+        private static bool IsGenerated(SyntaxNodeAnalysisContext context)
+        {
+            string path = Path.GetFileName(context.Node.SyntaxTree.FilePath);
+            return path.Contains(".Generated") || path.Contains(".generated");
         }
     }
 }
