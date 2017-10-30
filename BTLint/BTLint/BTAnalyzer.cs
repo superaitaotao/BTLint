@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -464,12 +465,16 @@ namespace BTAnalyzer
             string message = string.Empty;
             foreach (XmlElementSyntax xmlElement in xmlElements)
             {
+                // Remove empty nodes
+                XmlElementSyntax newXmlElement = xmlElement.ReplaceNodes(xmlElement.ChildNodes().Where(nodee => nodee.Kind() == SyntaxKind.XmlEmptyElement), 
+                    (rNode, _) => BTAnalyzer.ToXmlText(rNode)) as XmlElementSyntax;
+
                 // Swtich
-                switch (xmlElement.StartTag.Name.ToString())
+                switch (newXmlElement .StartTag.Name.ToString())
                 {
                     case "summary":
                     {
-                        if (!BTAnalyzer.CheckSummaryElement(nodeKind, xmlElement, ref location, ref message))
+                        if (!BTAnalyzer.CheckSummaryElement(nodeKind, newXmlElement, ref location, ref message))
                         {
                             result = false;
                             messageList.Add(message);
@@ -480,7 +485,7 @@ namespace BTAnalyzer
 
                     case "param":
                     {
-                        if (!BTAnalyzer.CheckParamElement(xmlElement, ref location, ref message, ref paramCommentNameList))
+                        if (!BTAnalyzer.CheckParamElement(newXmlElement, ref location, ref message, ref paramCommentNameList))
                         {
                             result = false;
                             messageList.Add(message);
@@ -491,7 +496,7 @@ namespace BTAnalyzer
 
                     case "returns":
                     {
-                        if (!BTAnalyzer.CheckReturnElement(xmlElement, ref location, ref message, ref returnCount))
+                        if (!BTAnalyzer.CheckReturnElement(newXmlElement, ref location, ref message, ref returnCount))
                         {
                             result = false;
                             messageList.Add(message);
@@ -528,7 +533,7 @@ namespace BTAnalyzer
             Position position = Position.Origin;
 
             // Return text
-            string text = xmlElement.ToFullString().Replace(xmlElement.StartTag.ToString(), String.Empty).Replace(xmlElement.EndTag.ToString(), String.Empty);
+            string text = xmlElement.ToString().Replace(xmlElement.StartTag.ToString(), String.Empty).Replace(xmlElement.EndTag.ToString(), String.Empty);
             foreach (StringValidator.Validate validate in BTAnalyzer.ReturnTextValidators)
             {
                 if (!validate(text, ref message, ref position))
@@ -571,7 +576,7 @@ namespace BTAnalyzer
 
             // Remove <see cref .. /> elements, remove start and end tags.
             // Check XML element text
-            string text = xmlElement.ToFullString().Replace(xmlElement.StartTag.ToString(), String.Empty).Replace(xmlElement.EndTag.ToString(), String.Empty);
+            string text = xmlElement.ToString().Replace(xmlElement.StartTag.ToString(), String.Empty).Replace(xmlElement.EndTag.ToString(), String.Empty).TrimStart('/');
             foreach (StringValidator.Validate validate in BTAnalyzer.ParamTextValidators)
             {
                 if (!validate(text, ref message, ref position))
@@ -629,7 +634,7 @@ namespace BTAnalyzer
                 {
                     if (!validate(xmlTextLiteralTokens[i].Text, ref message, ref position))
                         location = BTAnalyzer.GetLocation(xmlElement.SyntaxTree, xmlTextLiteralTokens[i].GetLocation(), position);
-                        return false;
+                    return false;
                 }
             }
 
@@ -792,6 +797,15 @@ namespace BTAnalyzer
         private static Location GetLocation(SyntaxTree syntaxTree, Location location, Position position, int offset = 0)
         {
             return Location.Create(syntaxTree, new TextSpan(location.SourceSpan.Start + position.Start + offset, position.Len));
+        }
+
+        private static XmlTextSyntax ToXmlText(SyntaxNode node)
+        {
+            string text = node.ToFullString();
+            StringBuilder builder = new StringBuilder();
+            for (int i = 0; i < text.Length; i++)
+                builder.Append('x');
+            return SyntaxFactory.XmlText(SyntaxFactory.TokenList(SyntaxFactory.ParseToken(builder.ToString())));
         }
     }
 }

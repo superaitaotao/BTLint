@@ -82,13 +82,13 @@ namespace BTAnalyzer
         public static bool EndWithDot(string text, ref string message, ref Position position)
         {
             // Trim string
-            string trimmedText = text.Trim();
+            string trimmedText = text.TrimEnd('\r','\n', '/', ' ');
 
             // End with dot
             if (!trimmedText.EndsWith("."))
             {
                 message = ErrorCode.ClassCommentEndDot;
-                position = new Position(trimmedText.Length - 1, 3);
+                position = new Position(trimmedText.Length - 3, 4);
                 return false;
             }
 
@@ -99,13 +99,13 @@ namespace BTAnalyzer
         public static bool NotEndWithDot(string text, ref string message, ref Position position)
         {
             // Trim string
-            string trimmedText = text.Trim();
+            string trimmedText = text.TrimEnd('\r','\n', '/', ' ');
 
             // End with dot
             if (trimmedText.EndsWith("."))
             {
                 message = ErrorCode.CommentNotEndWithDot;
-                position = new Position(trimmedText.Length - 1, 3);
+                position = new Position(trimmedText.Length - 3, 4);
                 return false;
             }
 
