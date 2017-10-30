@@ -123,7 +123,6 @@ namespace BTAnalyzer
             StringValidator.CommentNotEmpty,
             StringValidator.EndWithDot,
             StringValidator.NoMultipleSpace,
-            StringValidator.NotStartsWithSpace,
             StringValidator.StartWithCapitalLetter,
         };
 
@@ -135,7 +134,6 @@ namespace BTAnalyzer
             StringValidator.CommentNotEmpty,
             StringValidator.EndWithDot,
             StringValidator.NoMultipleSpace,
-            StringValidator.NotStartsWithSpace,
             StringValidator.StartWithCapitalLetter,
         };
 
@@ -465,16 +463,12 @@ namespace BTAnalyzer
             string message = string.Empty;
             foreach (XmlElementSyntax xmlElement in xmlElements)
             {
-                // Remove empty nodes
-                XmlElementSyntax newXmlElement = xmlElement.ReplaceNodes(xmlElement.ChildNodes().Where(nodee => nodee.Kind() == SyntaxKind.XmlEmptyElement), 
-                    (rNode, _) => BTAnalyzer.ToXmlText(rNode)) as XmlElementSyntax;
-
                 // Swtich
-                switch (newXmlElement .StartTag.Name.ToString())
+                switch (xmlElement.StartTag.Name.ToString())
                 {
                     case "summary":
                     {
-                        if (!BTAnalyzer.CheckSummaryElement(nodeKind, newXmlElement, ref location, ref message))
+                        if (!BTAnalyzer.CheckSummaryElement(nodeKind, xmlElement, ref location, ref message))
                         {
                             result = false;
                             messageList.Add(message);
@@ -485,7 +479,7 @@ namespace BTAnalyzer
 
                     case "param":
                     {
-                        if (!BTAnalyzer.CheckParamElement(newXmlElement, ref location, ref message, ref paramCommentNameList))
+                        if (!BTAnalyzer.CheckParamElement(xmlElement, ref location, ref message, ref paramCommentNameList))
                         {
                             result = false;
                             messageList.Add(message);
@@ -496,7 +490,7 @@ namespace BTAnalyzer
 
                     case "returns":
                     {
-                        if (!BTAnalyzer.CheckReturnElement(newXmlElement, ref location, ref message, ref returnCount))
+                        if (!BTAnalyzer.CheckReturnElement(xmlElement, ref location, ref message, ref returnCount))
                         {
                             result = false;
                             messageList.Add(message);
@@ -532,15 +526,51 @@ namespace BTAnalyzer
             location = xmlElement.StartTag.GetLocation();
             Position position = Position.Origin;
 
-            // Return text
-            string text = xmlElement.ToString().Replace(xmlElement.StartTag.ToString(), String.Empty).Replace(xmlElement.EndTag.ToString(), String.Empty);
-            foreach (StringValidator.Validate validate in BTAnalyzer.ReturnTextValidators)
+            // Check 
+            if (xmlElement.ToString().Contains("\r\n"))
             {
-                if (!validate(text, ref message, ref position))
+                string[] lines = xmlElement.ToString().Split(new string[] { "///" }, StringSplitOptions.None);
+                int offset = lines[0].Length + 3;
+                for (int i = 1; i < lines.Length; i++)
                 {
-                    location = BTAnalyzer.GetLocation(xmlElement.SyntaxTree, location, position, xmlElement.StartTag.ToString().Length);
-                    return false;
+                    string trimmedLine = lines[i].TrimEnd(' ', '\r', '\n');
+                    if (trimmedLine[0] != ' ')
+                    {
+                        message = ErrorCode.MissingSpace;
+                        location = BTAnalyzer.GetLocation(xmlElement.SyntaxTree, location, new Position(0, 0), offset);
+                        return false;
+                    }
+
+                    if (i > 0 && i < lines.Length - 1)
+                    {
+
+                        // Validate text
+                        foreach (StringValidator.Validate validate in BTAnalyzer.ReturnTextValidators)
+                        {
+                            if (!validate(trimmedLine, ref message, ref position))
+                            {
+                                location = BTAnalyzer.GetLocation(xmlElement.SyntaxTree, location, position, offset);
+                                return false;
+                            }
+                        }
+                    }
+
+                    offset += lines[i].Length + 3;
                 }
+            }
+            else
+            {
+                string text = xmlElement.ToString().Replace(xmlElement.StartTag.ToString(), string.Empty).Replace(xmlElement.EndTag.ToString(), string.Empty);
+                string trimmedLine = text.TrimEnd(' ', '\r', '\n');
+                foreach (StringValidator.Validate validate in BTAnalyzer.ReturnTextValidators)
+                {
+                    if (!validate(trimmedLine, ref message, ref position))
+                    {
+                        location = BTAnalyzer.GetLocation(xmlElement.SyntaxTree, location, position, xmlElement.StartTag.ToString().Length);
+                        return false;
+                    }
+                }
+
             }
 
             // Return true
@@ -610,32 +640,34 @@ namespace BTAnalyzer
             Position position = Position.Origin;
 
             // Check XML element text
-            SyntaxNode xmlTextNode = xmlElement.DescendantNodes().Where(node => SyntaxKind.XmlText == node.Kind()).FirstOrDefault();
-            if (null == xmlTextNode)
-            {
-                message = ErrorCode.ErrorsInComment;
-                return false;
-            }
-
-            // Check XML element text
-            SyntaxToken[] xmlTextLiteralTokens = xmlTextNode.DescendantTokens().Where(token => SyntaxKind.XmlTextLiteralToken == token.Kind()).ToArray();
-            SyntaxToken[] newlineTokerns = xmlTextNode.DescendantTokens().Where(token => SyntaxKind.XmlTextLiteralNewLineToken == token.Kind()).ToArray();
-            if (xmlTextLiteralTokens.Count() != newlineTokerns.Count())
-            {
-                message = ErrorCode.ErrorsInComment;
-                return false;
-            }
+            string[] lines = xmlElement.ToString().Split(new string[] { "///" }, StringSplitOptions.None);
 
             // Check 
-            for (int i = 0; i < xmlTextLiteralTokens.Length - 1; i++)
+            int offset = lines[0].Length + 3;
+            for (int i = 1; i < lines.Length; i++)
             {
-                // Validate text
-                foreach (StringValidator.Validate validate in BTAnalyzer.GetSummaryValidator(nodeKind))
+                string trimmedLine = lines[i].TrimEnd(' ', '\r', '\n');
+                if (trimmedLine[0] != ' ')
                 {
-                    if (!validate(xmlTextLiteralTokens[i].Text, ref message, ref position))
-                        location = BTAnalyzer.GetLocation(xmlElement.SyntaxTree, xmlTextLiteralTokens[i].GetLocation(), position);
+                    message = ErrorCode.MissingSpace;
+                    location = BTAnalyzer.GetLocation(xmlElement.SyntaxTree, location, new Position(0, 0), offset);
                     return false;
                 }
+
+                if (i > 0 && i < lines.Length - 1)
+                {
+                    // Validate text
+                    foreach (StringValidator.Validate validate in BTAnalyzer.GetSummaryValidator(nodeKind))
+                    {
+                        if (!validate(trimmedLine, ref message, ref position))
+                        {
+                            location = BTAnalyzer.GetLocation(xmlElement.SyntaxTree, location, position, offset);
+                            return false;
+                        }
+                    }
+                }
+
+                offset += lines[i].Length + 3;
             }
 
             // Return true

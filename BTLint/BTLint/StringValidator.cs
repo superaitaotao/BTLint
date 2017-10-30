@@ -81,14 +81,11 @@ namespace BTAnalyzer
 
         public static bool EndWithDot(string text, ref string message, ref Position position)
         {
-            // Trim string
-            string trimmedText = text.TrimEnd('\r','\n', '/', ' ');
-
             // End with dot
-            if (!trimmedText.EndsWith("."))
+            if (!text.EndsWith("."))
             {
                 message = ErrorCode.ClassCommentEndDot;
-                position = new Position(trimmedText.Length - 3, 4);
+                position = new Position(text.Length - 3, 4);
                 return false;
             }
 
@@ -98,14 +95,11 @@ namespace BTAnalyzer
 
         public static bool NotEndWithDot(string text, ref string message, ref Position position)
         {
-            // Trim string
-            string trimmedText = text.TrimEnd('\r','\n', '/', ' ');
-
             // End with dot
-            if (trimmedText.EndsWith("."))
+            if (text.EndsWith("."))
             {
                 message = ErrorCode.CommentNotEndWithDot;
-                position = new Position(trimmedText.Length - 3, 4);
+                position = new Position(text.Length - 3, 4);
                 return false;
             }
 
@@ -133,10 +127,10 @@ namespace BTAnalyzer
         public static bool FirstWordInSForm(string text, ref string message, ref Position position)
         {
             // First word
-            string firstWord = text.Trim().Split(' ')[0];
+            string firstWord = text.Trim(' ', '.').Split(' ')[0];
 
             // First word should be a verb with s or es
-            if (!(firstWord.EndsWith("s") && !(firstWord.EndsWith("es"))))
+            if (!firstWord.EndsWith("s") && !firstWord.EndsWith("es"))
             {
                 message = ErrorCode.FirstWordMustBeSForm;
                 position = new Position(0, firstWord.Length);
@@ -150,10 +144,10 @@ namespace BTAnalyzer
         public static bool FirstWordNotInSForm(string text, ref string message, ref Position position)
         {
             // First word
-            string firstWord = text.Trim().Split(' ')[0];
+            string firstWord = text.Trim(' ', '.').Split(' ')[0];
 
             // First word should not be a verb with s or es
-            if ((firstWord.EndsWith("s") || (firstWord.EndsWith("es"))))
+            if (firstWord.EndsWith("s") || firstWord.EndsWith("es"))
             {
                 message = ErrorCode.FirstWordNotInSForm;
                 position = new Position(0, firstWord.Length);
