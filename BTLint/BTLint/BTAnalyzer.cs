@@ -534,16 +534,16 @@ namespace BTAnalyzer
                 for (int i = 1; i < lines.Length; i++)
                 {
                     string trimmedLine = lines[i].TrimEnd(' ', '\r', '\n');
-                    if (trimmedLine[0] != ' ')
+                    if (' ' != trimmedLine[0])
                     {
                         message = ErrorCode.MissingSpace;
                         location = BTAnalyzer.GetLocation(xmlElement.SyntaxTree, location, new Position(0, 0), offset);
                         return false;
                     }
 
-                    if (i > 0 && i < lines.Length - 1)
+                    // Ignore first and last line
+                    if ((0 < i) && (i < lines.Length - 1))
                     {
-
                         // Validate text
                         foreach (StringValidator.Validate validate in BTAnalyzer.ReturnTextValidators)
                         {
@@ -555,6 +555,7 @@ namespace BTAnalyzer
                         }
                     }
 
+                    // Add offset, 3 for the removed ///
                     offset += lines[i].Length + 3;
                 }
             }
@@ -570,7 +571,6 @@ namespace BTAnalyzer
                         return false;
                     }
                 }
-
             }
 
             // Return true
@@ -604,7 +604,7 @@ namespace BTAnalyzer
             }
             paramCommentNameList.Add(xmlNameAttribute.Identifier.ToString());
 
-            // Remove <see cref .. /> elements, remove start and end tags.
+            // Remove <see cref .. /> elements, remove start and end tags
             // Check XML element text
             string text = xmlElement.ToString().Replace(xmlElement.StartTag.ToString(), String.Empty).Replace(xmlElement.EndTag.ToString(), String.Empty).TrimStart('/');
             foreach (StringValidator.Validate validate in BTAnalyzer.ParamTextValidators)
@@ -619,7 +619,6 @@ namespace BTAnalyzer
             // Return true
             return true;
         }
-
 
         /// <summary>
         /// Checks summary element.
@@ -647,14 +646,15 @@ namespace BTAnalyzer
             for (int i = 1; i < lines.Length; i++)
             {
                 string trimmedLine = lines[i].TrimEnd(' ', '\r', '\n');
-                if (trimmedLine[0] != ' ')
+                if (' ' != trimmedLine[0])
                 {
                     message = ErrorCode.MissingSpace;
                     location = BTAnalyzer.GetLocation(xmlElement.SyntaxTree, location, new Position(0, 0), offset);
                     return false;
                 }
 
-                if (i > 0 && i < lines.Length - 1)
+                // Ignore first and last lines
+                if ((0 < i) && (i < lines.Length - 1))
                 {
                     // Validate text
                     foreach (StringValidator.Validate validate in BTAnalyzer.GetSummaryValidator(nodeKind))
@@ -667,6 +667,7 @@ namespace BTAnalyzer
                     }
                 }
 
+                // Increase offset
                 offset += lines[i].Length + 3;
             }
 
@@ -826,18 +827,17 @@ namespace BTAnalyzer
             return SyntaxKind.PredefinedType == firstNode.Kind();
         }
 
+        /// <summary>
+        /// Gets exact location of an error.
+        /// </summary>
+        /// <param name="syntaxTree">Syntax tree.</param>
+        /// <param name="location">Location.</param>
+        /// <param name="position">Position.</param>
+        /// <param name="offset">Offset.</param>
+        /// <returns>Exact location.</returns>
         private static Location GetLocation(SyntaxTree syntaxTree, Location location, Position position, int offset = 0)
         {
             return Location.Create(syntaxTree, new TextSpan(location.SourceSpan.Start + position.Start + offset, position.Len));
-        }
-
-        private static XmlTextSyntax ToXmlText(SyntaxNode node)
-        {
-            string text = node.ToFullString();
-            StringBuilder builder = new StringBuilder();
-            for (int i = 0; i < text.Length; i++)
-                builder.Append('x');
-            return SyntaxFactory.XmlText(SyntaxFactory.TokenList(SyntaxFactory.ParseToken(builder.ToString())));
         }
     }
 }

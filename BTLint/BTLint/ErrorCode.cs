@@ -16,10 +16,10 @@
         internal static readonly string MissingNameAttribute = "Missing name attribute";
         internal static readonly string ExtraSpace = "Extra Space";
         internal static readonly string MustStartWithCapitalLetter = "Capital letter first";
-        internal static readonly string FirstWordMustBeSForm = "First verb should be in -s -es form";
+        internal static readonly string FirstWordMustBeSForm = "First verb may be in -s -es form";
         internal static readonly string IncorrectReturnComment = "Incorrect return comment";
         internal static readonly string CommentNotEndWithDot = "Should not end with .";
-        internal static readonly string FirstWordNotInSForm = "First word may not be in -s -es form";
+        internal static readonly string FirstWordNotInSForm = "First verb may not be in -s -es form";
         internal static readonly string MustStartWithTwoSlashes = "Must start with //";
         internal static readonly string ExtraLine = "Extra empty line space";
         internal static readonly string MissingEmptyLine = "Missing empty line space";
