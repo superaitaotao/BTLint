@@ -254,12 +254,12 @@ namespace BTAnalyzer
             ClassDeclarationSyntax classDeclarationSyntax = context.Node as ClassDeclarationSyntax;
 
             // Check method spacing
-            MethodDeclarationSyntax[] methods = classDeclarationSyntax.ChildNodes().Where(node => SyntaxKind.MethodDeclaration == node.Kind()).OfType<MethodDeclarationSyntax>().ToArray();
+            SyntaxNode[] nodes = classDeclarationSyntax.ChildNodes().Where(node => SyntaxKind.BaseList != node.Kind() && SyntaxKind.AttributeList != node.Kind()).ToArray();
             Location location = default(Location);
-            for (int i = 0; i < methods.Length; i++)
+            for (int i = 0; i < nodes.Length; i++)
             {
-                MethodDeclarationSyntax method = methods[i];
-                IEnumerable<SyntaxTrivia> trivias = method.DescendantTrivia();
+                SyntaxNode method = nodes[i];
+                IEnumerable<SyntaxTrivia> trivias = method.GetFirstToken().LeadingTrivia;
                 int count = 0;
                 int j = 0;
                 foreach (SyntaxTrivia trivia in trivias)

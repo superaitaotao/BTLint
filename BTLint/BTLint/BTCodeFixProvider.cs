@@ -79,10 +79,19 @@ namespace BTAnalyzer
 
         private static async Task<Document> MakeConstantLeft(Document document, SyntaxNode node, CancellationToken cancellationToken)
         {
+            // Sometimes the equal node is the child of the node passed in
+            if (!BTAnalyzer.IsEqualFamilyExpression(node.Kind()))
+                node = node.ChildNodes().FirstOrDefault();
+
             // Get child nodes
+            if (null == node)
+                return null;
+
+            // Get child node
             SyntaxNode[] childNodes = node.ChildNodes().ToArray();
             if (2 != childNodes.Count())
                 return null;
+
             // Replace the old local declaration with the new local declaration
             var oldRoot = await document.GetSyntaxRootAsync(cancellationToken);
             SyntaxNode newNode0 = childNodes[0].ReplaceToken(childNodes[0].GetFirstToken(), SyntaxFactory.ParseToken(childNodes[0].GetFirstToken().ToString().Trim()));
