@@ -39,8 +39,8 @@ namespace BTAnalyzer
                 return;
 
             // Fix missing bracket error
-            if (await RegisterErrorFix(context, BTCodeFixProvider.ADD_FULL_PARENTHESIS, ErrorCode.MissingFullParenthization, BTCodeFixProvider.FixFullParenthesisError))
-                return;
+            //if (await RegisterErrorFix(context, BTCodeFixProvider.ADD_FULL_PARENTHESIS, ErrorCode.MissingFullParenthization, BTCodeFixProvider.FixFullParenthesisError))
+            //    return;
 
             // Fix single line parenthesis
             if (await RegisterErrorFix(context, BTCodeFixProvider.REMOVE_SINGLE_LINE_BRACKET, ErrorCode.UnnecessaryBlock, BTCodeFixProvider.RemoveUnnecessaryBlock))

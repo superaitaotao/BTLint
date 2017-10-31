@@ -185,12 +185,12 @@ namespace BTAnalyzer
 
             // Get all logical expressions
             // Check that full parenthization is used in logical expressions
-            IEnumerable<SyntaxNode> logicalExpressions = methodDeclaration.DescendantNodes().Where(node => BTAnalyzer.IsLogicalExpression(node.Kind()));
-            foreach (SyntaxNode logicalNode in logicalExpressions)
-            {
-                foreach (SyntaxNode node in logicalNode.ChildNodes().Where(node => BTAnalyzer.IsEqualFamilyExpression(node.Kind())))
-                    context.ReportDiagnostic(Diagnostic.Create(BTAnalyzer.Rule, node.GetLocation(), ErrorCode.MissingFullParenthization));
-            }
+            // IEnumerable<SyntaxNode> logicalExpressions = methodDeclaration.DescendantNodes().Where(node => BTAnalyzer.IsLogicalExpression(node.Kind()));
+            // foreach (SyntaxNode logicalNode in logicalExpressions)
+            // {
+            //    foreach (SyntaxNode node in logicalNode.ChildNodes().Where(node => BTAnalyzer.IsEqualFamilyExpression(node.Kind())))
+            //        context.ReportDiagnostic(Diagnostic.Create(BTAnalyzer.Rule, node.GetLocation(), ErrorCode.MissingFullParenthization));
+            // }
 
             // Check that statements with 1 expression statement should ignore parenthesis
             IEnumerable<SyntaxNode> blockStatements = methodDeclaration.DescendantNodes().Where(node => BTAnalyzer.IsBlockStatement(node.Kind()));
