@@ -363,7 +363,7 @@ namespace BTAnalyzer
                     // Check for missing comment
                     if (i < trimmedBlockObjectList.Count())
                     {
-                        if ((0 < i - 1) && (SyntaxKind.SingleLineCommentTrivia != trimmedBlockObjectList[i - 1].Item2) && !isOnlySyntaxNode)
+                        if ((((0 < i - 1) && (SyntaxKind.SingleLineCommentTrivia != trimmedBlockObjectList[i - 1].Item2)) || i == 0) && !isOnlySyntaxNode)
                         {
                             SyntaxNode node = (SyntaxNode)trimmedBlockObjectList[i].Item1;
                             context.ReportDiagnostic(Diagnostic.Create(BTAnalyzer.Rule, Location.Create(node.SyntaxTree, new TextSpan(node.SpanStart, 10)), ErrorCode.MissingComment));
